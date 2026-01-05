@@ -23,7 +23,6 @@ struct SystemProfileRoot: Codable {
     let _dataType: String?
 }
 
-// What we show in the UI
 struct AuditItem: Identifiable {
     let id = UUID()
     let type: ItemType
@@ -33,8 +32,10 @@ struct AuditItem: Identifiable {
     let path: String?
     
     enum ItemType: String {
-        case mainApp = "Applications Folder"
-        case app = "All System Software"
+        case systemSpec = "System Specifications"
+        case mainApp = "Applications Folder"      // Manual Scan of /Applications
+        case installedApp = "Detected Applications" // Profiler Scan (Real User Apps)
+        case systemComponent = "System Internals"   // Profiler Scan (Background/Helper/Fluff)
         case device = "External Peripherals"
         case networkDrive = "Network & Storage"
         case internalDevice = "Built-in / System"
@@ -47,6 +48,7 @@ struct AuditItem: Identifiable {
 class AuditLogic: ObservableObject {
     @Published var isScanning = false
     @Published var progressMessage = "Ready"
+    @Published var scanProgress: Double = 0.0
     @Published var scannedItems: [AuditItem] = []
     
     // Developer Detective
@@ -55,20 +57,39 @@ class AuditLogic: ObservableObject {
         let nameString = name.lowercased()
         let pathString = (path ?? "").lowercased()
         
-        if pathString.hasPrefix("/system/") { return "Apple" }
-        if ["safari", "numbers", "pages", "keynote", "xcode", "imovie", "garageband", "photos", "podcasts", "music", "tv", "mail", "finder"].contains(nameString) { return "Apple" }
-        if infoString.contains("apple") || infoString.contains("mac app store") { return "Apple" }
+        // Priority Checks
         if infoString.contains("microsoft") || nameString.contains("microsoft") { return "Microsoft" }
-        if infoString.contains("adobe") { return "Adobe" }
+        if infoString.contains("adobe") || nameString.contains("adobe") { return "Adobe" }
         if infoString.contains("google") || nameString.contains("google") { return "Google" }
-        if infoString.contains("jamf") { return "Jamf" }
         if infoString.contains("zoom") { return "Zoom" }
         if infoString.contains("cisco") || nameString.contains("webex") { return "Cisco" }
+        
+        // Apple Checks
+        if pathString.hasPrefix("/system/") || pathString.contains("/core services/") { return "Apple" }
+        if ["safari", "numbers", "pages", "keynote", "xcode", "imovie", "garageband", "photos", "podcasts", "music", "tv", "mail", "finder", "preview", "textedit"].contains(nameString) { return "Apple" }
+        if infoString.contains("apple") || infoString.contains("mac app store") { return "Apple" }
         
         return "Other Developers"
     }
     
-    // Helper to run command
+    // The "Fluff Filter"
+    func isUserFacingApp(path: String?) -> Bool {
+        guard let p = path else { return false }
+        
+        // 1. Must be in a valid Application folder
+        let inAppFolder = p.hasPrefix("/Applications") ||
+                          p.hasPrefix("/System/Applications") ||
+                          p.hasPrefix("/Users/") && p.contains("/Applications/")
+        
+        // 2. Must NOT be nested inside another app (e.g. Word.app/Contents/Updater.app)
+        let isNested = p.components(separatedBy: ".app/").count > 2
+        
+        // 3. Must NOT be in System Library fluff (CoreServices, Frameworks, etc)
+        let isSystemLib = p.hasPrefix("/System/Library") || p.hasPrefix("/Library")
+        
+        return inAppFolder && !isNested && !isSystemLib
+    }
+    
     func runSystemProfiler(dataType: String) -> [SystemProfileItem] {
         let task = Process()
         let pipe = Pipe()
@@ -84,13 +105,12 @@ class AuditLogic: ObservableObject {
         } catch { return [] }
     }
     
-    // --- UPDATED: Now accepts userName ---
     func performAudit(userName: String, completion: @escaping (String?) -> Void) {
         isScanning = true
-        progressMessage = "Initialising scan..."
-        DispatchQueue.main.async { self.scannedItems = [] }
+        progressMessage = "Initialising scan..." // BRITISH SPELLING
+        scanProgress = 0.0
         
-        // Clean up user name for filename (remove spaces/special chars)
+        DispatchQueue.main.async { self.scannedItems = [] }
         let safeName = userName.components(separatedBy: .whitespacesAndNewlines).joined(separator: "_")
         
         DispatchQueue.global(qos: .userInitiated).async {
@@ -100,8 +120,19 @@ class AuditLogic: ObservableObject {
             let driversDir = tempDir.appendingPathComponent("Printer_Drivers")
             try? fileManager.createDirectory(at: driversDir, withIntermediateDirectories: true, attributes: nil)
             
-            // --- A. Scan /Applications Folder Manually ---
-            DispatchQueue.main.async { self.progressMessage = "Checking Applications folder..." }
+            // --- STEP 1: Specs ---
+            DispatchQueue.main.async { self.progressMessage = "Analysing Storage & RAM..."; self.scanProgress = 0.1 } // BRITISH SPELLING
+            Thread.sleep(forTimeInterval: 1.0)
+            tempItems.append(contentsOf: HardwareCollector.getStorageSpecs())
+            
+            DispatchQueue.main.async { self.scanProgress = 0.2 }
+            tempItems.append(contentsOf: HardwareCollector.getMemoryAndChipSpecs())
+            
+            DispatchQueue.main.async { self.scanProgress = 0.3 }
+            tempItems.append(contentsOf: HardwareCollector.getIdentitySpecs())
+
+            // --- STEP 2: Apps Folder ---
+            DispatchQueue.main.async { self.progressMessage = "Scanning Applications..."; self.scanProgress = 0.4 }
             let appFolderURL = URL(fileURLWithPath: "/Applications")
             if let urls = try? fileManager.contentsOfDirectory(at: appFolderURL, includingPropertiesForKeys: nil) {
                 for url in urls {
@@ -112,8 +143,8 @@ class AuditLogic: ObservableObject {
                 }
             }
             
-            // --- B. Scan Network & Storage Volumes ---
-            DispatchQueue.main.async { self.progressMessage = "Scanning network drives..." }
+            // --- STEP 3: Network ---
+            DispatchQueue.main.async { self.progressMessage = "Checking Network Drives..."; self.scanProgress = 0.45 }
             let keys: [URLResourceKey] = [.volumeNameKey, .volumeIsLocalKey]
             if let mountedVolumes = fileManager.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: [.skipHiddenVolumes]) {
                 for volume in mountedVolumes {
@@ -129,18 +160,39 @@ class AuditLogic: ObservableObject {
                 }
             }
             
-            // --- C. Scan System Profiler Apps ---
-            DispatchQueue.main.async { self.progressMessage = "Analysing deep system info..." }
+            // --- STEP 4: DEEP SYSTEM SCAN ---
+            DispatchQueue.main.async { self.progressMessage = "Deep System Analysis..." }
+            
+            let deepScanFinished = AtomicBool()
+            let step4Start = 0.5
+            let step4Target = 0.75
+            
+            DispatchQueue.global().async {
+                var current = step4Start
+                while !deepScanFinished.value && current < step4Target {
+                    Thread.sleep(forTimeInterval: 0.1)
+                    current += 0.002
+                    let updateVal = current
+                    DispatchQueue.main.async { self.scanProgress = updateVal }
+                }
+            }
+            
             let apps = self.runSystemProfiler(dataType: "SPApplicationsDataType")
+            deepScanFinished.value = true
+            
             for app in apps {
                 let name = (app._name ?? "Unknown").replacingOccurrences(of: ",", with: " ")
                 let version = app.version ?? "N/A"
                 let devName = self.detectDeveloper(from: app.info, name: name, path: app.path)
-                tempItems.append(AuditItem(type: .app, name: name, details: version, developer: devName, path: app.path))
+                
+                // FLUFF FILTER
+                let type: AuditItem.ItemType = self.isUserFacingApp(path: app.path) ? .installedApp : .systemComponent
+                
+                tempItems.append(AuditItem(type: type, name: name, details: version, developer: devName, path: app.path))
             }
             
-            // --- D. Scan USB ---
-            DispatchQueue.main.async { self.progressMessage = "Detecting peripherals..." }
+            // --- STEP 5: Peripherals ---
+            DispatchQueue.main.async { self.progressMessage = "Scanning USB Devices..."; self.scanProgress = 0.8 }
             let usbDevices = self.runSystemProfiler(dataType: "SPUSBDataType")
             let internalKeywords = ["Bus", "Host Controller", "Root Hub", "Simulation", "Bridge", "Internal", "T2", "Ambient", "Touch Bar", "Backlight", "Sensor", "Headset", "Apple Internal", "Keyboard/Trackpad"]
             
@@ -157,8 +209,8 @@ class AuditLogic: ObservableObject {
             }
             parseUSBItems(usbDevices)
             
-            // --- E. Printers ---
-            DispatchQueue.main.async { self.progressMessage = "Capturing printer drivers..." }
+            // --- STEP 6: Printers ---
+            DispatchQueue.main.async { self.progressMessage = "Capturing Printer Drivers..."; self.scanProgress = 0.9 }
             let printers = self.runSystemProfiler(dataType: "SPPrintersDataType")
             let ppdSourcePath = "/etc/cups/ppd/"
             if let ppdFiles = try? fileManager.contentsOfDirectory(atPath: ppdSourcePath) {
@@ -175,29 +227,26 @@ class AuditLogic: ObservableObject {
             
             DispatchQueue.main.async { self.scannedItems = tempItems }
             
-            // --- F. Generate Outputs ---
+            // --- STEP 7: Finalize ---
+            DispatchQueue.main.async { self.progressMessage = "Saving Report..."; self.scanProgress = 1.0 }
             
-            // CSV - Add User Name Header
-            var csvContent = "USER: \(userName)\nDATE: \(Date())\n\n"
-            csvContent += "TYPE, DEVELOPER, NAME, VERSION/PATH\n"
+            // CLEAN CSV (Removed User/Date header)
+            var csvContent = "TYPE, DEVELOPER, NAME, VERSION/PATH\n"
             for item in tempItems {
                 csvContent += "\(item.type.rawValue), \(item.developer), \(item.name), \(item.details)\n"
             }
             
-            // Filename includes USERNAME now
             let csvFilename = "Audit_Report_\(safeName).csv"
             try? csvContent.write(to: tempDir.appendingPathComponent(csvFilename), atomically: true, encoding: .utf8)
             
-            // HTML - Pass userName
             let htmlContent = HTMLBuilder.generateHTML(items: tempItems, userName: userName)
             let htmlFilename = "Dashboard_\(safeName).html"
             try? htmlContent.write(to: tempDir.appendingPathComponent(htmlFilename), atomically: true, encoding: .utf8)
             
-            // --- G. Zip ---
-            DispatchQueue.main.async { self.progressMessage = "Finalising package..." }
-            let desktopURL = fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first!
+            // ZIP
+            DispatchQueue.main.async { self.progressMessage = "Finalising package..." } // BRITISH SPELLING
             
-            // Zip Filename includes USERNAME
+            let desktopURL = fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first!
             let zipFilename = "Migration_Data_\(safeName)_\(ISO8601DateFormatter().string(from: Date()).prefix(10)).zip"
             let destinationZipURL = desktopURL.appendingPathComponent(zipFilename)
             
@@ -216,5 +265,14 @@ class AuditLogic: ObservableObject {
             }
             try? zipTask.run()
         }
+    }
+}
+
+class AtomicBool: @unchecked Sendable {
+    private var val: Bool = false
+    private let lock = NSLock()
+    var value: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return val }
+        set { lock.lock(); defer { lock.unlock() }; val = newValue }
     }
 }

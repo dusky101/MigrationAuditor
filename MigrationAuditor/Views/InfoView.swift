@@ -5,7 +5,6 @@
 //  Created by Marc on 02/01/2026.
 //
 
-
 import SwiftUI
 
 struct InfoView: View {
@@ -40,7 +39,7 @@ struct InfoView: View {
                     Group {
                         Text("Purpose")
                             .font(.headline)
-                        Text("This application assists IT in preparing your new Mac environment. By capturing your current setup, we ensure you have the correct software and drivers ready on your new machine.")
+                        Text("This application assists IT in preparing your new Mac environment. By capturing your current setup, we ensure you have the correct hardware specs, software, and drivers ready on your new machine.")
                             .font(.body)
                             .foregroundColor(.secondary)
                     }
@@ -52,9 +51,15 @@ struct InfoView: View {
                         Text("What is Scanned?")
                             .font(.headline)
                         
+                        // NEW: System Specs
+                        InfoRow(icon: "cpu", title: "System Specifications", desc: "Captures RAM, Chip type, Storage capacity, and Serial Number.")
+                        
+                        // NEW: Network
+                        InfoRow(icon: "server.rack", title: "Network Drives", desc: "Lists connected network shares and NAS volumes.")
+                        
                         InfoRow(icon: "app.badge.checkmark", title: "Applications", desc: "Lists installed software so we can redeploy essential apps.")
                         InfoRow(icon: "printer.fill", title: "Printer Drivers", desc: "Copies driver files for your connected printers.")
-                        InfoRow(icon: "cable.connector", title: "Peripherals", desc: "Identifies webcams, drawing tablets, and specialized USB devices.")
+                        InfoRow(icon: "cable.connector", title: "Peripherals", desc: "Identifies webcams, drawing tablets, and specialised USB devices.") // British 'specialised'
                     }
                     
                     Divider()
@@ -85,7 +90,7 @@ struct InfoView: View {
                         }
                         HStack(alignment: .top) {
                             Text("3.")
-                            Text("Review the data, then email the generated ZIP file to your administrator.")
+                            Text("Review the data, then share/email the generated ZIP file to your administrator.")
                         }
                     }
                     .foregroundColor(.secondary)
@@ -114,7 +119,7 @@ struct InfoRow: View {
                 Text(title)
                     .fontWeight(.semibold)
                 Text(desc)
-                    .font(.caption) // British English: 'Colour' is standard system font behaviour
+                    .font(.caption)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
