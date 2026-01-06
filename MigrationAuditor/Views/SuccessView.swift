@@ -17,21 +17,23 @@ struct SuccessView: View {
     
     // Animation States
     @State private var buttonsVisible = false
-    @State private var shimmerOffset: CGFloat = -200
+    @State private var shimmerOffset: CGFloat = -500
     
-    func openShareSheet() {
+    // Copy Feedback State
+    @State private var hasCopied = false
+    
+    func copyFileToClipboard() {
         let fileURL = URL(fileURLWithPath: path)
-        let picker = NSSharingServicePicker(items: [fileURL])
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects([fileURL as NSPasteboardWriting])
         
-        // Fix: Anchor the menu to the button area (Bottom Center)
-        // rather than the whole window.
-        if let window = NSApplication.shared.windows.first(where: { $0.isKeyWindow }),
-           let contentView = window.contentView {
-            
-            // Define a rectangle near the bottom center of the window
-            let buttonRect = NSRect(x: contentView.bounds.midX, y: 120, width: 0, height: 0)
-            
-            picker.show(relativeTo: buttonRect, of: contentView, preferredEdge: .minY)
+        // Trigger "Copied!" animation
+        withAnimation { hasCopied = true }
+        
+        // Reset back to normal after 2 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation { hasCopied = false }
         }
     }
     
@@ -66,7 +68,7 @@ struct SuccessView: View {
             // --- BUTTONS ---
             VStack(spacing: 15) {
                 
-                // 1. REVIEW BUTTON (Top - Primary Visibility)
+                // 1. REVIEW BUTTON (Top)
                 Button(action: { showingDetailsSheet = true }) {
                     HStack {
                         Image(systemName: "list.bullet.clipboard")
@@ -95,40 +97,62 @@ struct SuccessView: View {
                 }
                 .buttonStyle(.plain)
                 
-                // 2. SHARE BUTTON (Middle - Blue with Glimmer)
-                Button(action: openShareSheet) {
+                // 2. COPY BUTTON (Middle - Blue with Shine -> Turns Green on Click)
+                Button(action: copyFileToClipboard) {
                     HStack {
-                        Image(systemName: "square.and.arrow.up.fill")
+                        // Icon changes checkmark when copied
+                        Image(systemName: hasCopied ? "checkmark" : "doc.on.doc.fill")
                             .font(.title3)
+                            .scaleEffect(hasCopied ? 1.2 : 1.0)
+                        
                         VStack(alignment: .leading) {
-                            Text("Share File")
+                            // Text changes when copied
+                            Text(hasCopied ? "Copied to Clipboard!" : "Copy Report File")
                                 .fontWeight(.bold)
-                            Text("Send to IT Support")
+                            Text(hasCopied ? "Ready to Paste (Cmd+V)" : "Paste into Outlook / Email")
                                 .font(.caption)
                                 .opacity(0.8)
                         }
                         Spacer()
-                        Image(systemName: "paperplane.fill")
                     }
                     .padding()
-                    .foregroundColor(.white) // Force White Text
-                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    // Background changes to Green when copied
+                    .background(hasCopied ? Color.green : Color.blue)
                     .cornerRadius(10)
+                    // THE SHINE EFFECT (Only shows when NOT copied)
                     .overlay(
-                        // GLIMMER EFFECT
-                        Rectangle()
-                            .fill(
-                                LinearGradient(gradient: Gradient(colors: [.clear, .white.opacity(0.5), .clear]), startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                            .frame(width: 100)
-                            .offset(x: shimmerOffset)
-                            .mask(Rectangle().cornerRadius(10))
+                        Group {
+                            if !hasCopied {
+                                GeometryReader { geo in
+                                    Rectangle()
+                                        .fill(
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [
+                                                    .clear,
+                                                    .white.opacity(0.1),
+                                                    .white.opacity(0.6),
+                                                    .white.opacity(0.1),
+                                                    .clear
+                                                ]),
+                                                startPoint: .top,
+                                                endPoint: .bottom
+                                            )
+                                        )
+                                        .rotationEffect(.degrees(45))
+                                        .frame(width: geo.size.width * 2, height: geo.size.height * 2)
+                                        .offset(x: shimmerOffset, y: -geo.size.height)
+                                }
+                                .mask(RoundedRectangle(cornerRadius: 10))
+                            }
+                        }
                     )
                 }
                 .buttonStyle(.plain)
                 .shadow(radius: 3)
+                .animation(.spring(), value: hasCopied)
                 
-                // 3. FINDER BUTTON (Bottom - Proper Button)
+                // 3. FINDER BUTTON (Bottom)
                 Button(action: revealFile) {
                     HStack {
                         Image(systemName: "folder.fill")
@@ -148,7 +172,7 @@ struct SuccessView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .frame(maxWidth: 320) // Consistent width for all buttons
+            .frame(maxWidth: 320)
             .opacity(buttonsVisible ? 1.0 : 0.0)
             .offset(y: buttonsVisible ? 0 : 20)
             .animation(.easeOut(duration: 0.5).delay(0.3), value: buttonsVisible)
@@ -161,7 +185,7 @@ struct SuccessView: View {
             // Run Glimmer Animation loop
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                    shimmerOffset = 350
+                    shimmerOffset = 500
                 }
             }
         }

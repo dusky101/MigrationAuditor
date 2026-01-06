@@ -33,7 +33,7 @@ struct AuditItem: Identifiable {
     
     enum ItemType: String {
         case systemSpec = "System Specifications"
-        case mainApp = "Applications Folder"      // Manual Scan of /Applications
+        case mainApp = "Applications Folder"       // Manual Scan of /Applications
         case installedApp = "Detected Applications" // Profiler Scan (Real User Apps)
         case systemComponent = "System Internals"   // Profiler Scan (Background/Helper/Fluff)
         case device = "External Peripherals"
@@ -50,6 +50,9 @@ class AuditLogic: ObservableObject {
     @Published var progressMessage = "Ready"
     @Published var scanProgress: Double = 0.0
     @Published var scannedItems: [AuditItem] = []
+    
+    // Timer for "Ghost Progress" animation
+    private var ghostTimer: Timer?
     
     // Developer Detective
     func detectDeveloper(from info: String?, name: String, path: String?) -> String {
@@ -105,6 +108,31 @@ class AuditLogic: ObservableObject {
         } catch { return [] }
     }
     
+    // --- HELPER: Start the Ghost Progress Timer (Must run on Main Thread) ---
+    private func startGhostProgress(start: Double, target: Double, duration: Double) {
+        ghostTimer?.invalidate() // Stop any existing timer
+        self.scanProgress = start
+        
+        let stepTime = 0.05 // Update 20 times a second for smoothness
+        let totalSteps = duration / stepTime
+        let increment = (target - start) / totalSteps
+        
+        ghostTimer = Timer.scheduledTimer(withTimeInterval: stepTime, repeats: true) { [weak self] timer in
+            guard let self = self else { timer.invalidate(); return }
+            if self.scanProgress < target {
+                self.scanProgress += increment
+            } else {
+                timer.invalidate()
+            }
+        }
+    }
+    
+    // --- HELPER: Stop the Timer immediately ---
+    private func stopGhostProgress() {
+        ghostTimer?.invalidate()
+        ghostTimer = nil
+    }
+    
     func performAudit(userName: String, completion: @escaping (String?) -> Void) {
         isScanning = true
         progressMessage = "Initialising scan..." // BRITISH SPELLING
@@ -121,7 +149,7 @@ class AuditLogic: ObservableObject {
             try? fileManager.createDirectory(at: driversDir, withIntermediateDirectories: true, attributes: nil)
             
             // --- STEP 1: Specs ---
-            DispatchQueue.main.async { self.progressMessage = "Analysing Storage & RAM..."; self.scanProgress = 0.1 } // BRITISH SPELLING
+            DispatchQueue.main.async { self.progressMessage = "Analysing Storage & RAM..."; self.scanProgress = 0.1 }
             Thread.sleep(forTimeInterval: 1.0)
             tempItems.append(contentsOf: HardwareCollector.getStorageSpecs())
             
@@ -160,25 +188,20 @@ class AuditLogic: ObservableObject {
                 }
             }
             
-            // --- STEP 4: DEEP SYSTEM SCAN ---
-            DispatchQueue.main.async { self.progressMessage = "Deep System Analysis..." }
+            // --- STEP 4: DEEP SYSTEM SCAN (The Heavy Part) ---
             
-            let deepScanFinished = AtomicBool()
-            let step4Start = 0.5
-            let step4Target = 0.75
-            
-            DispatchQueue.global().async {
-                var current = step4Start
-                while !deepScanFinished.value && current < step4Target {
-                    Thread.sleep(forTimeInterval: 0.1)
-                    current += 0.002
-                    let updateVal = current
-                    DispatchQueue.main.async { self.scanProgress = updateVal }
-                }
+            // 1. Start the Ghost Timer on the Main Thread
+            DispatchQueue.main.async {
+                self.progressMessage = "Deep System Analysis..."
+                // Creep from 50% to 75% over 15 seconds
+                self.startGhostProgress(start: 0.5, target: 0.75, duration: 15.0)
             }
             
+            // 2. Run the heavy blocking task in background
             let apps = self.runSystemProfiler(dataType: "SPApplicationsDataType")
-            deepScanFinished.value = true
+            
+            // 3. Stop timer immediately on Main Thread
+            DispatchQueue.main.async { self.stopGhostProgress() }
             
             for app in apps {
                 let name = (app._name ?? "Unknown").replacingOccurrences(of: ",", with: " ")
@@ -258,6 +281,8 @@ class AuditLogic: ObservableObject {
             zipTask.terminationHandler = { _ in
                 try? fileManager.removeItem(at: tempDir)
                 DispatchQueue.main.async {
+                    // Stop the timer just in case it's still running
+                    self.stopGhostProgress()
                     self.isScanning = false
                     self.progressMessage = "Complete"
                     completion(destinationZipURL.path)
@@ -265,14 +290,5 @@ class AuditLogic: ObservableObject {
             }
             try? zipTask.run()
         }
-    }
-}
-
-class AtomicBool: @unchecked Sendable {
-    private var val: Bool = false
-    private let lock = NSLock()
-    var value: Bool {
-        get { lock.lock(); defer { lock.unlock() }; return val }
-        set { lock.lock(); defer { lock.unlock() }; val = newValue }
     }
 }

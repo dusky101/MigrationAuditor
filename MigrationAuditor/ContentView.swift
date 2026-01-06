@@ -60,7 +60,8 @@ struct ContentView: View {
             }
         }
         .padding()
-        .frame(width: 500, height: 500)
+        // --- CHANGED SIZE HERE ---
+        .frame(width: 550, height: 650)
         .sheet(isPresented: $showInfo) { InfoView() }
     }
 }
