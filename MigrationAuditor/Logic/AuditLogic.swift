@@ -5,6 +5,13 @@
 //  Created by Marc on 02/01/2026.
 //
 
+//
+//  AuditLogic.swift
+//  MigrationAuditor
+//
+//  Created by Marc on 02/01/2026.
+//
+
 import Foundation
 import Combine
 
@@ -135,7 +142,7 @@ class AuditLogic: ObservableObject {
     
     func performAudit(userName: String, completion: @escaping (String?) -> Void) {
         isScanning = true
-        progressMessage = "Initialising scan..." // BRITISH SPELLING
+        progressMessage = "Initialising scan..."
         scanProgress = 0.0
         
         DispatchQueue.main.async { self.scannedItems = [] }
@@ -253,10 +260,22 @@ class AuditLogic: ObservableObject {
             // --- STEP 7: Finalize ---
             DispatchQueue.main.async { self.progressMessage = "Saving Report..."; self.scanProgress = 1.0 }
             
-            // CLEAN CSV (Removed User/Date header)
-            var csvContent = "TYPE, DEVELOPER, NAME, VERSION/PATH\n"
+            // --- FIX: Clean CSV Generation ---
+            // Helper function to remove commas/newlines to prevent CSV breaking
+            func cleanForCSV(_ text: String) -> String {
+                return text.replacingOccurrences(of: ",", with: " ")
+                           .replacingOccurrences(of: "\n", with: " ")
+                           .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            var csvContent = "TYPE, DEVELOPER, NAME, DETAILS\n"
             for item in tempItems {
-                csvContent += "\(item.type.rawValue), \(item.developer), \(item.name), \(item.details)\n"
+                let cleanType = cleanForCSV(item.type.rawValue)
+                let cleanDev = cleanForCSV(item.developer)
+                let cleanName = cleanForCSV(item.name)
+                let cleanDetails = cleanForCSV(item.details)
+                
+                csvContent += "\(cleanType), \(cleanDev), \(cleanName), \(cleanDetails)\n"
             }
             
             let csvFilename = "Audit_Report_\(safeName).csv"
@@ -267,7 +286,7 @@ class AuditLogic: ObservableObject {
             try? htmlContent.write(to: tempDir.appendingPathComponent(htmlFilename), atomically: true, encoding: .utf8)
             
             // ZIP
-            DispatchQueue.main.async { self.progressMessage = "Finalising package..." } // BRITISH SPELLING
+            DispatchQueue.main.async { self.progressMessage = "Finalising package..." }
             
             let desktopURL = fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first!
             let zipFilename = "Migration_Data_\(safeName)_\(ISO8601DateFormatter().string(from: Date()).prefix(10)).zip"
@@ -281,7 +300,6 @@ class AuditLogic: ObservableObject {
             zipTask.terminationHandler = { _ in
                 try? fileManager.removeItem(at: tempDir)
                 DispatchQueue.main.async {
-                    // Stop the timer just in case it's still running
                     self.stopGhostProgress()
                     self.isScanning = false
                     self.progressMessage = "Complete"
