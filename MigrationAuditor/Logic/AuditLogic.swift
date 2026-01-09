@@ -5,12 +5,6 @@
 //  Created by Marc on 02/01/2026.
 //
 
-//
-//  AuditLogic.swift
-//  MigrationAuditor
-//
-//  Created by Marc on 02/01/2026.
-//
 
 import Foundation
 import Combine
