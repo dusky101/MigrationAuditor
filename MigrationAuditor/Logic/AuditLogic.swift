@@ -157,11 +157,14 @@ class AuditLogic: ObservableObject {
             DispatchQueue.main.async { self.scanProgress = 0.2 }
             tempItems.append(contentsOf: HardwareCollector.getMemoryAndChipSpecs())
             
-            DispatchQueue.main.async { self.scanProgress = 0.3 }
+            DispatchQueue.main.async { self.scanProgress = 0.25 }
             tempItems.append(contentsOf: HardwareCollector.getIdentitySpecs())
+            
+            DispatchQueue.main.async { self.progressMessage = "Checking iCloud Account..."; self.scanProgress = 0.3 }
+            tempItems.append(contentsOf: iCloudCollector.getiCloudAccountInfo())
 
             // --- STEP 2: Apps Folder ---
-            DispatchQueue.main.async { self.progressMessage = "Scanning Applications..."; self.scanProgress = 0.4 }
+            DispatchQueue.main.async { self.progressMessage = "Scanning Applications..."; self.scanProgress = 0.35 }
             let appFolderURL = URL(fileURLWithPath: "/Applications")
             if let urls = try? fileManager.contentsOfDirectory(at: appFolderURL, includingPropertiesForKeys: nil) {
                 for url in urls {
@@ -173,7 +176,7 @@ class AuditLogic: ObservableObject {
             }
             
             // --- STEP 3: Network ---
-            DispatchQueue.main.async { self.progressMessage = "Checking Network Drives..."; self.scanProgress = 0.45 }
+            DispatchQueue.main.async { self.progressMessage = "Checking Network Drives..."; self.scanProgress = 0.4 }
             let keys: [URLResourceKey] = [.volumeNameKey, .volumeIsLocalKey]
             if let mountedVolumes = fileManager.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: [.skipHiddenVolumes]) {
                 for volume in mountedVolumes {
