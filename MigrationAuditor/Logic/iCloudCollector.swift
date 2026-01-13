@@ -9,6 +9,13 @@ import Foundation
 
 struct iCloudCollector {
     
+    /// Account management types
+    enum AccountManagementType {
+        case appleBusinessManager  // Managed via Apple Business Manager
+        case mdmManaged           // Has MDM but not ABM
+        case personal             // Standard personal iCloud
+    }
+    
     /// Detects iCloud account status and type (personal vs managed)
     static func getiCloudAccountInfo() -> [AuditItem] {
         var items: [AuditItem] = []
@@ -22,8 +29,6 @@ struct iCloudCollector {
         task.standardError = Pipe() // Suppress errors
         
         var accountEmail: String?
-        var accountType: String = "Not Detected"
-        var isManaged = false
         
         do {
             try task.run()
@@ -59,17 +64,29 @@ struct iCloudCollector {
         
         // Determine account status
         if let email = accountEmail {
-            accountType = "Personal Account"
+            // Check the management type
+            let managementType = checkManagedAccountType(email: email)
             
-            // Check if it's a managed account
-            // Managed accounts typically have MDM profiles or specific domain patterns
-            if isManagedAccount(email: email) {
-                accountType = "Managed Business Account"
-                isManaged = true
+            var accountSymbol: String
+            var accountTypeDesc: String
+            var developer: String
+            
+            switch managementType {
+            case .appleBusinessManager:
+                accountSymbol = "🏢"
+                accountTypeDesc = "Apple Business Manager"
+                developer = "Business/MDM"
+            case .mdmManaged:
+                accountSymbol = "🔐"
+                accountTypeDesc = "MDM Managed"
+                developer = "Business/MDM"
+            case .personal:
+                accountSymbol = "👤"
+                accountTypeDesc = "Personal iCloud"
+                developer = "Personal"
             }
             
-            let details = "Logged in: \(email)"
-            let developer = isManaged ? "Business/MDM" : "Personal"
+            let details = "\(accountSymbol) \(accountTypeDesc) - \(email)"
             
             items.append(AuditItem(
                 type: .systemSpec,
@@ -83,7 +100,7 @@ struct iCloudCollector {
             items.append(AuditItem(
                 type: .systemSpec,
                 name: "iCloud Account",
-                details: "Signed in (email not detected)",
+                details: "❓ Signed in (email not detected)",
                 developer: "iCloud",
                 path: nil
             ))
@@ -92,7 +109,7 @@ struct iCloudCollector {
             items.append(AuditItem(
                 type: .systemSpec,
                 name: "iCloud Account",
-                details: "Not signed in",
+                details: "❌ Not signed in",
                 developer: "N/A",
                 path: nil
             ))
@@ -144,23 +161,95 @@ struct iCloudCollector {
         return nil
     }
     
-    /// Determine if an iCloud account is managed (business/MDM)
-    private static func isManagedAccount(email: String) -> Bool {
+    /// Determine the management type of an iCloud account
+    private static func checkManagedAccountType(email: String) -> AccountManagementType {
+        // Check for Apple Business Manager indicators
+        let isABM = checkForAppleBusinessManager()
+        
         // Check for MDM profiles
-        let hasMDMProfile = checkForMDMProfile()
+        let hasMDM = checkForMDMProfile()
         
-        // Check for business domains (common patterns)
-        let businessDomains = ["icloud.com", "me.com", "mac.com"]
-        let isPersonalDomain = businessDomains.contains { email.lowercased().hasSuffix($0) }
+        let emailLower = email.lowercased()
         
-        // If it's NOT a personal domain, it's likely managed
-        if !isPersonalDomain {
-            return true
+        // Apple ID domains (can be used with ABM)
+        let appleIDDomains = ["icloud.com", "me.com", "mac.com"]
+        let isAppleID = appleIDDomains.contains { emailLower.hasSuffix($0) }
+        
+        // Common personal email providers (NEVER used with ABM)
+        let personalEmailProviders = [
+            "gmail.com", "googlemail.com",
+            "hotmail.com", "outlook.com", "live.com", "msn.com",
+            "yahoo.com", "ymail.com",
+            "aol.com",
+            "protonmail.com", "proton.me",
+            "icloud.com", "me.com", "mac.com"
+        ]
+        let isPersonalEmailProvider = personalEmailProviders.contains { emailLower.hasSuffix($0) }
+        
+        // RULE 1: If it's a personal email provider (Gmail, Hotmail, etc.), it's ALWAYS personal
+        // Even if MDM is present (could be leftover from previous enrollment)
+        if isPersonalEmailProvider {
+            return .personal
         }
         
-        // If MDM profile exists, it's managed
-        if hasMDMProfile {
-            return true
+        // RULE 2: If Apple Business Manager is explicitly detected AND it's an Apple ID, it's ABM
+        if isABM && isAppleID {
+            return .appleBusinessManager
+        }
+        
+        // RULE 3: If there's active MDM and it's a custom corporate domain, it's MDM managed
+        if hasMDM && !isAppleID {
+            return .mdmManaged
+        }
+        
+        // RULE 4: Custom domain without MDM = likely corporate but unmanaged
+        if !isAppleID && !isPersonalEmailProvider {
+            return .mdmManaged
+        }
+        
+        // RULE 5: Default to personal
+        return .personal
+    }
+    
+    /// Check for Apple Business Manager enrollment
+    private static func checkForAppleBusinessManager() -> Bool {
+        // Method 1: Check for DEP/ABM enrollment via profiles
+        let task = Process()
+        let pipe = Pipe()
+        task.launchPath = "/usr/bin/profiles"
+        task.arguments = ["status", "-type", "enrollment"]
+        task.standardOutput = pipe
+        task.standardError = Pipe()
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8) {
+                // Look for ABM/DEP enrollment indicators
+                let abmKeywords = ["Enrolled via DEP", "Device Enrollment", "User Approved", "enrollment"]
+                for keyword in abmKeywords {
+                    if output.contains(keyword) {
+                        return true
+                    }
+                }
+            }
+        } catch {
+            // Silently fail
+        }
+        
+        // Method 2: Check for the presence of ABM-related files
+        let abmIndicatorPaths = [
+            "/Library/Application Support/com.apple.TCC/MDMOverrides.plist",
+            "/var/db/ConfigurationProfiles/Settings/.cloudConfigHasActivationRecord",
+            "/var/db/ConfigurationProfiles/Settings/.cloudConfigRecordFound"
+        ]
+        
+        for path in abmIndicatorPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                return true
+            }
         }
         
         return false
@@ -181,13 +270,35 @@ struct iCloudCollector {
             
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             if let output = String(data: data, encoding: .utf8) {
-                // Look for MDM-related keywords
-                let mdmKeywords = ["MDM", "Device Management", "Configuration Profile", "com.apple.mdm"]
-                for keyword in mdmKeywords {
-                    if output.contains(keyword) {
-                        return true
+                // Only consider it MDM if there are ACTIVE profiles
+                // Check for actual profile identifiers, not just the word "Configuration"
+                let lines = output.components(separatedBy: .newlines)
+                
+                var hasActiveProfiles = false
+                for line in lines {
+                    // Look for actual MDM profile indicators
+                    if line.contains("com.apple.mdm") || 
+                       line.contains("devicemanagement") ||
+                       (line.contains("Attribute: profileIdentifier:") && line.contains("mdm")) {
+                        hasActiveProfiles = true
+                        break
                     }
                 }
+                
+                // Also check if there are ANY configuration profiles installed
+                // If output contains profile UUIDs or identifiers, MDM might be active
+                if !hasActiveProfiles && output.contains("profileIdentifier") {
+                    // There are some profiles, check if they're MDM-related
+                    if output.lowercased().contains("jamf") ||
+                       output.lowercased().contains("intune") ||
+                       output.lowercased().contains("workspace") ||
+                       output.lowercased().contains("kandji") ||
+                       output.lowercased().contains("mosyle") {
+                        hasActiveProfiles = true
+                    }
+                }
+                
+                return hasActiveProfiles
             }
         } catch {
             // Silently fail
