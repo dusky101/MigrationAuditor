@@ -5,7 +5,6 @@
 //  Created by Marc on 05/01/2026.
 //
 
-
 import SwiftUI
 import AppKit
 
@@ -13,6 +12,10 @@ struct SuccessView: View {
     let path: String
     let userName: String
     @ObservedObject var auditor: AuditLogic
+    
+    // NEW: Closure to handle the reset action
+    var onReset: () -> Void
+    
     @State private var showingDetailsSheet = false
     
     // Animation States
@@ -171,6 +174,16 @@ struct SuccessView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                
+                // 4. NEW: RESET BUTTON
+                Button(action: onReset) {
+                    Text("Start New Audit")
+                        .foregroundColor(.secondary)
+                        .font(.callout)
+                        .underline(true, color: .clear) // Invisible underline to keep text size consistent on hover if we wanted
+                }
+                .buttonStyle(.link)
+                .padding(.top, 10)
             }
             .frame(maxWidth: 320)
             .opacity(buttonsVisible ? 1.0 : 0.0)
@@ -190,8 +203,7 @@ struct SuccessView: View {
             }
         }
         .sheet(isPresented: $showingDetailsSheet) {
-            DataReviewView(items: auditor.scannedItems)
-                .frame(width: 700, height: 600)
+            DataReviewView(items: auditor.scannedItems, userName: userName)
         }
     }
 }

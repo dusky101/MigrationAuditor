@@ -13,6 +13,9 @@ struct ContentView: View {
     @State private var showInfo = false
     @State private var userName = ""
     
+    // Toggle for including font files
+    @State private var includeFonts = false
+    
     var body: some View {
         VStack(spacing: 20) {
             
@@ -22,6 +25,7 @@ struct ContentView: View {
                     .resizable()
                     .frame(width: 50, height: 50)
                     .foregroundColor(.blue)
+                
                 VStack(alignment: .leading) {
                     Text("Mac Migration Assistant")
                         .font(.title2)
@@ -30,6 +34,7 @@ struct ContentView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                
                 Spacer()
                 
                 Button(action: { showInfo = true }) {
@@ -40,6 +45,7 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .help("What does this app do?")
             }
+            .padding(.horizontal, 30) // Added extra padding here to pull it in from the edges
             .padding(.bottom, 10)
             
             Divider()
@@ -49,19 +55,33 @@ struct ContentView: View {
                 ScanningView(message: auditor.progressMessage, progress: auditor.scanProgress)
             } else {
                 if let path = reportPath {
-                    SuccessView(path: path, userName: userName, auditor: auditor)
-                } else {
-                    IntroView(userName: $userName, startAction: {
-                        auditor.performAudit(userName: userName) { path in
-                            self.reportPath = path
+                    SuccessView(
+                        path: path,
+                        userName: userName,
+                        auditor: auditor,
+                        onReset: {
+                            // RESET LOGIC
+                            self.reportPath = nil
+                            self.userName = ""
+                            self.includeFonts = false
+                            self.auditor.scannedItems = []
                         }
-                    })
+                    )
+                } else {
+                    IntroView(
+                        userName: $userName,
+                        includeFonts: $includeFonts,
+                        startAction: {
+                            auditor.performAudit(userName: userName, includeFonts: includeFonts) { path in
+                                self.reportPath = path
+                            }
+                        }
+                    )
                 }
             }
         }
         .padding()
-        // --- CHANGED SIZE HERE ---
-        .frame(width: 550, height: 650)
+        .frame(width: 1320, height: 800) // Updated to your new landscape size
         .sheet(isPresented: $showInfo) { InfoView() }
     }
 }

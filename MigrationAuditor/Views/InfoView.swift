@@ -51,15 +51,20 @@ struct InfoView: View {
                         Text("What is Scanned?")
                             .font(.headline)
                         
-                        // NEW: System Specs
+                        // Hardware
                         InfoRow(icon: "cpu", title: "System Specifications", desc: "Captures RAM, Chip type, Storage capacity, and Serial Number.")
-                        
-                        // NEW: Network
                         InfoRow(icon: "server.rack", title: "Network Drives", desc: "Lists connected network shares and NAS volumes.")
+                        InfoRow(icon: "cable.connector", title: "Peripherals", desc: "Identifies webcams, drawing tablets, and specialised USB devices.")
                         
+                        // Software
                         InfoRow(icon: "app.badge.checkmark", title: "Applications", desc: "Lists installed software so we can redeploy essential apps.")
+                        InfoRow(icon: "safari", title: "Web Browsers", desc: "Detects installed web browsers (Chrome, Firefox, etc.).")
+                        InfoRow(icon: "terminal", title: "Homebrew", desc: "Lists developer packages installed via Homebrew.")
+                        
+                        // Configuration
+                        InfoRow(icon: "textformat", title: "Fonts", desc: "Identifies user-installed fonts and optionally captures the font files for migration.")
                         InfoRow(icon: "printer.fill", title: "Printer Drivers", desc: "Copies driver files for your connected printers.")
-                        InfoRow(icon: "cable.connector", title: "Peripherals", desc: "Identifies webcams, drawing tablets, and specialised USB devices.") // British 'specialised'
+                        InfoRow(icon: "cloud", title: "Cloud & Email", desc: "Lists configured email accounts and detected cloud storage providers.")
                     }
                     
                     Divider()
@@ -69,7 +74,7 @@ struct InfoView: View {
                         Text("What is NOT Scanned?")
                             .font(.headline)
                         
-                        InfoRow(icon: "lock.shield", title: "Private Data", desc: "No documents, emails, passwords, or browsing history are accessed.")
+                        InfoRow(icon: "lock.shield", title: "Private Data", desc: "No documents, passwords, or browsing history are accessed.")
                         InfoRow(icon: "network.slash", title: "Network Traffic", desc: "No internet monitoring or traffic analysis is performed.")
                     }
                     
@@ -86,10 +91,14 @@ struct InfoView: View {
                         }
                         HStack(alignment: .top) {
                             Text("2.")
-                            Text("Click 'Start Capture' and wait for the scan to finish.")
+                            Text("Select 'Include Font Files' if you require your custom typography library moved.")
                         }
                         HStack(alignment: .top) {
                             Text("3.")
+                            Text("Click 'Start Analysis' and wait for the scan to finish.")
+                        }
+                        HStack(alignment: .top) {
+                            Text("4.")
                             Text("Review the data, then share/email the generated ZIP file to your administrator.")
                         }
                     }
