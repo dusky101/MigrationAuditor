@@ -8,6 +8,15 @@ It scans a user's current Mac to generate a "Hardware & Software Baseline," ensu
 ![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey.svg)
 ![Licence](https://img.shields.io/badge/License-MIT-blue.svg)
 
+## 📥 Download
+
+**Don't want to build from source?**
+You can download the latest **Apple Notarised** version of the app directly from our Releases page. This version is signed and ready to run on any Mac without Gatekeeper warnings.
+
+[**👉 Download Latest Release**](https://github.com/dusky101/MigrationAuditor/releases)
+
+---
+
 ## 🎯 Purpose
 
 When migrating users to new machines, IT often asks: *"What apps do you actually use?"*, *"Do you need custom fonts moved?"*, or *"Do you need 32GB of RAM?"*
@@ -48,20 +57,12 @@ The app generates a single **ZIP archive** on the Desktop containing:
 * **Logic:** Native `system_profiler` calls, `CoreText` for font metadata, and `FileManager` APIs.
 * **Design:** Custom Flow Layouts for filtering and responsive window sizing.
 
-## 🚀 How to Run
+## 🚀 How to Run (For Developers)
 
 1. Clone the repo.
 2. Open `MigrationAuditor.xcodeproj` in Xcode.
 3. Set the Signing Team to your Apple Developer Account (required for Hardened Runtime).
 4. Build and Run (`Cmd + R`).
-
-## 📦 Distribution
-
-To distribute this tool to users without Xcode:
-1. Archive the project (`Product -> Archive`).
-2. **Notarise** the app using your Apple Developer ID (this prevents Gatekeeper warnings).
-3. Export the Notarised app.
-4. Zip and share via email or MDM.
 
 ## 📄 Licence
 
