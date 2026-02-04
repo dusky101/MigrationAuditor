@@ -147,10 +147,23 @@ struct PDFExporter {
     
     private static func drawHeader(yPosition: CGFloat, pageWidth: CGFloat, margin: CGFloat, userName: String) -> CGFloat {
         var y = yPosition
+        
         let titleFont = NSFont.boldSystemFont(ofSize: 24)
         let title = "Mac Migration Inventory"
         let titleAttr: [NSAttributedString.Key: Any] = [.font: titleFont, .foregroundColor: NSColor.black]
         let titleSize = title.size(withAttributes: titleAttr)
+        
+        // Draw Zellis logo aligned with the title
+        if   let logoImage = NSImage(named: "zellis") {
+            let logoHeight: CGFloat = 70
+            let aspectRatio = logoImage.size.width / logoImage.size.height
+            let logoWidth = logoHeight * aspectRatio
+            // Position logo so its center aligns roughly with title center
+            let logoY = y - titleSize.height - (logoHeight - titleSize.height) / 2
+            let logoRect = CGRect(x: pageWidth - margin - logoWidth, y: logoY, width: logoWidth, height: logoHeight)
+            logoImage.draw(in: logoRect)
+        }
+        
         title.draw(at: CGPoint(x: margin, y: y - titleSize.height), withAttributes: titleAttr)
         y -= (titleSize.height + 8)
         

@@ -16,27 +16,33 @@ struct ContentView: View {
     // Toggle for including font files
     @State private var includeFonts = false
     
+    @Environment(\.colorScheme) private var colorScheme
+    
     var body: some View {
         VStack(spacing: 20) {
             
             // --- HEADER ---
-            HStack {
-                Image(systemName: "archivebox.circle.fill")
+            HStack(alignment: .center, spacing: 0) {
+                // Logo
+                Image(colorScheme == .dark ? "zellisdark" : "zellislight")
                     .resizable()
-                    .frame(width: 50, height: 50)
-                    .foregroundColor(.blue)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 80)
                 
-                VStack(alignment: .leading) {
+                Spacer()
+                
+                // Title Section
+                VStack(spacing: 4) {
                     Text("Mac Migration Assistant")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Capture your setup for IT")
-                        .font(.caption)
+                        .font(.system(size: 28, weight: .semibold))
+                    Text("Capture your setup for easy migration")
+                        .font(.system(size: 14))
                         .foregroundColor(.secondary)
                 }
                 
                 Spacer()
                 
+                // Info Button
                 Button(action: { showInfo = true }) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 22))
@@ -45,8 +51,9 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .help("What does this app do?")
             }
-            .padding(.horizontal, 30) // Added extra padding here to pull it in from the edges
-            .padding(.bottom, 10)
+            .padding(.horizontal, 40)
+            .padding(.vertical, 20)
+//            .background(Color(nsColor: .windowBackgroundColor))
             
             Divider()
             
