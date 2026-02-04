@@ -149,7 +149,7 @@ struct DataReviewView: View {
                     }
                     
                     // Quick Info Grid
-                    let quickInfoTypes: [AuditItem.ItemType] = [.browser, .emailAccount, .cloudStorage, .font, .homebrew, .networkDrive, .printer, .device, .internalDevice]
+                    let quickInfoTypes: [AuditItem.ItemType] = [.browser, .emailAccount, .cloudStorage, .musicLibrary, .photosLibrary, .font, .homebrew, .networkDrive, .printer, .device, .internalDevice]
                     
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
                         ForEach(quickInfoTypes, id: \.self) { type in
@@ -460,6 +460,16 @@ struct IconHelper {
             if name.contains("version") { return Image(systemName: "macwindow") }
             if name.contains("tahoe") || name.contains("support") { return Image(systemName: "sparkles") }
             if name.contains("icloud") { return Image(systemName: "icloud") }
+        }
+        // Music Library Icons
+        if item.type == .musicLibrary {
+            let name = item.name.lowercased()
+            if name.contains("spotify") { return Image(systemName: "music.note") }
+            return Image(systemName: "music.note.list")
+        }
+        // Photos Library Icons
+        if item.type == .photosLibrary {
+            return Image(systemName: "photo.on.rectangle")
         }
         if item.details.hasPrefix("/") {
             let nsImage = NSWorkspace.shared.icon(forFile: item.details)

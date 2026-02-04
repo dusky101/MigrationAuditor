@@ -46,6 +46,8 @@ struct AuditItem: Identifiable {
         case emailAccount = "Email Accounts"
         case cloudStorage = "Cloud Storage"
         case homebrew = "Homebrew Packages"
+        case musicLibrary = "Music Library"
+        case photosLibrary = "Photos Library"
         
         var icon: String {
             switch self {
@@ -62,6 +64,8 @@ struct AuditItem: Identifiable {
             case .emailAccount: return "envelope.fill"
             case .cloudStorage: return "cloud.fill"
             case .homebrew: return "terminal.fill"
+            case .musicLibrary: return "music.note.list"
+            case .photosLibrary: return "photo.on.rectangle"
             }
         }
         
@@ -80,6 +84,8 @@ struct AuditItem: Identifiable {
             case .emailAccount: return .red
             case .cloudStorage: return .blue
             case .homebrew: return .brown
+            case .musicLibrary: return .mint
+            case .photosLibrary: return .teal
             }
         }
     }

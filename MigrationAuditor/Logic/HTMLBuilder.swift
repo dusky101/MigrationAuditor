@@ -23,6 +23,8 @@ class HTMLBuilder {
         let cloudStorage = items.filter { $0.type == .cloudStorage }
         let fonts = items.filter { $0.type == .font }
         let homebrew = items.filter { $0.type == .homebrew }
+        let musicLibrary = items.filter { $0.type == .musicLibrary }
+        let photosLibrary = items.filter { $0.type == .photosLibrary }
         
         // Group Real Apps
         let realApps = items.filter { $0.type == .installedApp }
@@ -428,6 +430,34 @@ class HTMLBuilder {
                             </tbody></table>
                         </div>
                         
+                        <div class="card" data-category="music">
+                            <div class="card-header">
+                                <span class="card-title">🎵 Music Library</span>
+                                <span class="badge">\(musicLibrary.count)</span>
+                            </div>
+                            <table><thead><tr><th>Library</th><th>Size & Details</th></tr></thead><tbody>
+        """
+        
+        html += Self.generateRows(items: musicLibrary)
+        
+        html += """
+                            </tbody></table>
+                        </div>
+                        
+                        <div class="card" data-category="photos">
+                            <div class="card-header">
+                                <span class="card-title">📸 Photos Library</span>
+                                <span class="badge">\(photosLibrary.count)</span>
+                            </div>
+                            <table><thead><tr><th>Library</th><th>Size & Details</th></tr></thead><tbody>
+        """
+        
+        html += Self.generateRows(items: photosLibrary)
+        
+        html += """
+                            </tbody></table>
+                        </div>
+                        
                         <div class="card" data-category="fonts">
                             <div class="card-header">
                                 <span class="card-title">🔤 Fonts</span>
@@ -564,6 +594,8 @@ class HTMLBuilder {
                     { id: 'browsers', name: 'Browsers', icon: '🌐', count: \(browsers.count) },
                     { id: 'email', name: 'Email', icon: '📧', count: \(emails.count) },
                     { id: 'cloud', name: 'Cloud Storage', icon: '☁️', count: \(cloudStorage.count) },
+                    { id: 'music', name: 'Music', icon: '🎵', count: \(musicLibrary.count) },
+                    { id: 'photos', name: 'Photos', icon: '📸', count: \(photosLibrary.count) },
                     { id: 'fonts', name: 'Fonts', icon: '🔤', count: \(fonts.count) },
                     { id: 'homebrew', name: 'Homebrew', icon: '🍺', count: \(homebrew.count) },
                     { id: 'apps', name: 'Applications', icon: '📱', count: \(mainApps.count + realApps.count) },

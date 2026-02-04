@@ -55,7 +55,27 @@ struct PDFExporter {
         NSGraphicsContext.current = graphicsContext
         
         let groupedItems = Dictionary(grouping: items) { $0.type }
-        let sortedTypes = AuditItem.ItemType.allCases.filter { type in
+        
+        // Custom order for PDF sections - music/photos before apps
+        let preferredOrder: [AuditItem.ItemType] = [
+            .systemSpec,
+            .browser,
+            .emailAccount,
+            .cloudStorage,
+            .musicLibrary,
+            .photosLibrary,
+            .font,
+            .homebrew,
+            .networkDrive,
+            .printer,
+            .device,
+            .internalDevice,
+            .mainApp,
+            .installedApp,
+            .systemComponent
+        ]
+        
+        let sortedTypes = preferredOrder.filter { type in
             guard let items = groupedItems[type] else { return false }
             if type == .internalDevice && items.isEmpty { return false }
             return !items.isEmpty
@@ -227,6 +247,28 @@ struct PDFExporter {
             if let img = NSImage(systemSymbolName: sysIconName, accessibilityDescription: nil) {
                 img.isTemplate = true
                 NSColor.darkGray.set()
+                img.draw(in: iconRect)
+                iconDrawn = true
+            }
+        }
+        
+        // 2.5. Music Library Logic
+        if !iconDrawn && item.type == .musicLibrary {
+            let name = item.name.lowercased()
+            let iconName = name.contains("spotify") ? "music.note" : "music.note.list"
+            if let img = NSImage(systemSymbolName: iconName, accessibilityDescription: nil) {
+                img.isTemplate = true
+                NSColor(red: 0.0, green: 0.8, blue: 0.7, alpha: 1.0).set() // Mint color
+                img.draw(in: iconRect)
+                iconDrawn = true
+            }
+        }
+        
+        // 2.6. Photos Library Logic
+        if !iconDrawn && item.type == .photosLibrary {
+            if let img = NSImage(systemSymbolName: "photo.on.rectangle", accessibilityDescription: nil) {
+                img.isTemplate = true
+                NSColor(red: 0.3, green: 0.8, blue: 0.8, alpha: 1.0).set() // Teal color
                 img.draw(in: iconRect)
                 iconDrawn = true
             }
