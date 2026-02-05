@@ -22,16 +22,29 @@ struct ContentView: View {
         VStack(spacing: 20) {
             
             // --- HEADER ---
-            HStack(alignment: .center, spacing: 0) {
-                // Logo
-                Image(colorScheme == .dark ? "zellisdark" : "zellislight")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 80)
+            ZStack {
+                // Background layer with logo and info button
+                HStack(alignment: .center, spacing: 0) {
+                    // Logo (left side)
+                    Image(colorScheme == .dark ? "zellisdark" : "zellislight")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(height: 80)
+                    
+                    Spacer()
+                    
+                    // Info Button (right side)
+                    Button(action: { showInfo = true }) {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 22))
+                            .foregroundColor(.blue)
+                    }
+                    .buttonStyle(.plain)
+                    .help("What does this app do?")
+                }
+                .padding(.horizontal, 40)
                 
-                Spacer()
-                
-                // Title Section
+                // Title Section (centered overlay)
                 VStack(spacing: 4) {
                     Text("Mac Migration Assistant")
                         .font(.system(size: 28, weight: .semibold))
@@ -39,19 +52,7 @@ struct ContentView: View {
                         .font(.system(size: 14))
                         .foregroundColor(.secondary)
                 }
-                
-                Spacer()
-                
-                // Info Button
-                Button(action: { showInfo = true }) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 22))
-                        .foregroundColor(.blue)
-                }
-                .buttonStyle(.plain)
-                .help("What does this app do?")
             }
-            .padding(.horizontal, 40)
             .padding(.vertical, 20)
 //            .background(Color(nsColor: .windowBackgroundColor))
             

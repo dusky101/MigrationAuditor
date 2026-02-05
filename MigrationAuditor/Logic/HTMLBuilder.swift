@@ -474,7 +474,7 @@ class HTMLBuilder {
                         
                         <div class="card" data-category="network">
                             <div class="card-header">
-                                <span class="card-title">🌐 Network</span>
+                                <span class="card-title">💾 Network & Storage</span>
                                 <span class="badge">\(network.count)</span>
                             </div>
                             <table><thead><tr><th>Drive</th><th>Type</th></tr></thead><tbody>
@@ -599,7 +599,7 @@ class HTMLBuilder {
                     { id: 'fonts', name: 'Fonts', icon: '🔤', count: \(fonts.count) },
                     { id: 'homebrew', name: 'Homebrew', icon: '🍺', count: \(homebrew.count) },
                     { id: 'apps', name: 'Applications', icon: '📱', count: \(mainApps.count + realApps.count) },
-                    { id: 'network', name: 'Network', icon: '🌐', count: \(network.count) },
+                    { id: 'network', name: 'Network & Storage', icon: '💾', count: \(network.count) },
                     { id: 'printers', name: 'Printers', icon: '🖨', count: \(printers.count) },
                     { id: 'devices', name: 'Devices', icon: '🔌', count: \(external.count) },
                     { id: 'internals', name: 'Internals', icon: '⚙️', count: \(internals.count) }

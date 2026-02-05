@@ -47,20 +47,24 @@ struct DataReviewHelpView: View {
                     // 2. Filtering
                     HelpSection(title: "Using Filters", icon: "line.3.horizontal.decrease.circle") {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("The buttons at the top allow you to filter the list:")
+                            Text("The category chips at the top allow you to filter the list:")
                                 .foregroundColor(.secondary)
                             
                             HStack(alignment: .top, spacing: 8) {
                                 Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
-                                Text("Click a category chip to toggle it on or off.")
+                                Text("**Click** a category chip to toggle it on or off.")
+                            }
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "option")
+                                Text("Hold **Option (⌥)** and click a chip to 'solo' it (show only that category).")
                             }
                             HStack(alignment: .top, spacing: 8) {
                                 Image(systemName: "command")
-                                Text("Hold **Command (⌘)** and click a chip to 'solo' it (hide everything else).")
+                                Text("Hold **Command (⌘)** and click a chip to ensure it's visible and selected.")
                             }
                             HStack(alignment: .top, spacing: 8) {
                                 Image(systemName: "magnifyingglass")
-                                Text("Use the search bar to find specific apps or files by name.")
+                                Text("Use the **search bar** to find specific apps or files by name.")
                             }
                         }
                         .font(.callout)
@@ -76,6 +80,43 @@ struct DataReviewHelpView: View {
                                 .font(.callout)
                             Text("• If you want a full report, ensure 'Select All' is clicked before exporting.")
                                 .font(.callout)
+                            Text("• The PDF includes proper icons for Music Library, Photos Library, and all other items.")
+                                .font(.callout)
+                        }
+                        .padding(.top, 5)
+                    }
+                    
+                    // Storage Planning
+                    HelpSection(title: "Understanding Storage Data", icon: "internaldrive.fill") {
+                        Text("The Music Library and Photos Library items help you plan storage for your new Mac:")
+                            .foregroundColor(.secondary)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("• **Music Library**: Total size of all music files in your Music folder (including Apple Music, iTunes, and Spotify cache).")
+                                .font(.callout)
+                            Text("• **Photos Library**: Complete size of your Photos Library bundle, including all originals, edits, thumbnails, and metadata.")
+                                .font(.callout)
+                            Text("• Use these numbers to determine if you need additional storage on your new Mac.")
+                                .font(.callout)
+                        }
+                        .padding(.top, 5)
+                    }
+                    
+                    // Battery Health
+                    HelpSection(title: "Battery Health Information", icon: "battery.100percent") {
+                        Text("For MacBook users, battery health metrics are captured:")
+                            .foregroundColor(.secondary)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("• **Condition**: Normal, Fair, or Service Recommended")
+                                .font(.callout)
+                            Text("• **Maximum Capacity**: Current battery health as a percentage")
+                                .font(.callout)
+                            Text("• **Cycle Count**: Number of charge cycles completed")
+                                .font(.callout)
+                            Text("This helps IT assess whether a battery replacement is needed before migration.")
+                                .font(.callout)
+                                .foregroundColor(.blue)
                         }
                         .padding(.top, 5)
                     }
@@ -87,21 +128,46 @@ struct DataReviewHelpView: View {
                         .font(.title3)
                         .fontWeight(.bold)
                     
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
-                        DataCategoryRow(icon: "desktopcomputer", color: .purple, title: "System Specs", desc: "Hardware details & Serial Number.")
-                        DataCategoryRow(icon: "app.badge", color: .indigo, title: "Applications", desc: "User-installed software.")
-                        DataCategoryRow(icon: "folder.fill", color: .blue, title: "Apps Folder", desc: "Items found in /Applications.")
-                        DataCategoryRow(icon: "textformat", color: .pink, title: "Fonts", desc: "User-installed typefaces.")
-                        DataCategoryRow(icon: "server.rack", color: .green, title: "Network", desc: "Connected shares & NAS drives.")
-                        DataCategoryRow(icon: "printer.fill", color: .orange, title: "Printers", desc: "Queues and driver files.")
-                        DataCategoryRow(icon: "terminal.fill", color: .brown, title: "Homebrew", desc: "Developer packages & tools.")
-                        DataCategoryRow(icon: "cloud.fill", color: .blue, title: "Cloud", desc: "Cloud storage providers.")
+                    VStack(spacing: 12) {
+                        Text("Your captured data is organised into the following categories:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
+                            // Hardware & System
+                            DataCategoryRow(icon: "desktopcomputer", color: .purple, title: "System Specs", desc: "Hardware details, Serial Number, and Tahoe support.")
+                            DataCategoryRow(icon: "battery.100percent", color: .purple, title: "Battery Health", desc: "Condition, capacity, and cycle count (laptops only).")
+                            
+                            // Applications
+                            DataCategoryRow(icon: "app.badge", color: .indigo, title: "Detected Apps", desc: "User-installed applications from system profile.")
+                            DataCategoryRow(icon: "folder.fill", color: .blue, title: "Applications Folder", desc: "Apps found in /Applications directory.")
+                            DataCategoryRow(icon: "gearshape.2", color: .gray, title: "System Internals", desc: "Background helpers and system components.")
+                            
+                            // Media Libraries
+                            DataCategoryRow(icon: "music.note.list", color: .mint, title: "Music Library", desc: "Size and location of music collections.")
+                            DataCategoryRow(icon: "photo.on.rectangle", color: .teal, title: "Photos Library", desc: "Photos app library size for storage planning.")
+                            
+                            // Configuration & Tools
+                            DataCategoryRow(icon: "textformat", color: .pink, title: "Fonts", desc: "User-installed and admin-installed typefaces.")
+                            DataCategoryRow(icon: "terminal.fill", color: .brown, title: "Homebrew", desc: "Developer packages and CLI tools.")
+                            
+                            // Internet & Cloud
+                            DataCategoryRow(icon: "safari", color: .cyan, title: "Browsers", desc: "Installed web browsers and profiles.")
+                            DataCategoryRow(icon: "envelope.fill", color: .red, title: "Email Accounts", desc: "Configured email in Mail and Outlook.")
+                            DataCategoryRow(icon: "cloud.fill", color: .blue, title: "Cloud Storage", desc: "Detected cloud storage providers.")
+                            
+                            // Hardware & Peripherals
+                            DataCategoryRow(icon: "server.rack", color: .green, title: "Network & Storage", desc: "Network shares, NAS drives, and USB storage.")
+                            DataCategoryRow(icon: "cable.connector", color: .yellow, title: "External Devices", desc: "Connected peripherals like webcams.")
+                            DataCategoryRow(icon: "printer.fill", color: .orange, title: "Printers", desc: "Printer queues and driver files.")
+                        }
                     }
                 }
                 .padding(25)
             }
         }
-        .frame(width: 600, height: 700)
+        .frame(width: 650, height: 800)
     }
 }
 

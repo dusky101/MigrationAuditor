@@ -215,6 +215,9 @@ class AuditLogic: ObservableObject {
             DispatchQueue.main.async { self.scanProgress = 0.25 }
             tempItems.append(contentsOf: HardwareCollector.getIdentitySpecs())
             
+            DispatchQueue.main.async { self.progressMessage = "Checking Battery Health..."; self.scanProgress = 0.27 }
+            tempItems.append(contentsOf: HardwareCollector.getBatterySpecs())
+            
             DispatchQueue.main.async { self.progressMessage = "Checking iCloud Account..."; self.scanProgress = 0.3 }
             tempItems.append(contentsOf: iCloudCollector.getiCloudAccountInfo())
             
@@ -229,6 +232,14 @@ class AuditLogic: ObservableObject {
             // --- CLOUD STORAGE ---
             DispatchQueue.main.async { self.progressMessage = "Checking Cloud Storage..."; self.scanProgress = 0.33 }
             tempItems.append(contentsOf: CloudStorageCollector.getCloudStorageInfo())
+            
+            // --- MUSIC LIBRARY ---
+            DispatchQueue.main.async { self.progressMessage = "Scanning Music Library..."; self.scanProgress = 0.335 }
+            tempItems.append(contentsOf: MediaLibraryCollector.getMusicLibraryInfo())
+            
+            // --- PHOTOS LIBRARY ---
+            DispatchQueue.main.async { self.progressMessage = "Analyzing Photos Library..."; self.scanProgress = 0.337 }
+            tempItems.append(contentsOf: MediaLibraryCollector.getPhotosLibraryInfo())
             
             // --- FONTS (Updated for Toggle) ---
             DispatchQueue.main.async { self.progressMessage = "Scanning Fonts..."; self.scanProgress = 0.34 }

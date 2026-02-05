@@ -256,6 +256,7 @@ struct PDFExporter {
             else if name.contains("version") { sysIconName = "macwindow" }
             else if name.contains("tahoe") || name.contains("support") { sysIconName = "sparkles" }
             else if name.contains("icloud") { sysIconName = "icloud" }
+            else if name.contains("battery") { sysIconName = "battery.100percent" }
             
             if let img = NSImage(systemSymbolName: sysIconName, accessibilityDescription: nil) {
                 img.isTemplate = true
@@ -267,27 +268,43 @@ struct PDFExporter {
         
         // 2.5. Music Library Logic
         if !iconDrawn && item.type == .musicLibrary {
-            let name = item.name.lowercased()
-            let iconName = name.contains("spotify") ? "music.note" : "music.note.list"
-            if let img = NSImage(systemSymbolName: iconName, accessibilityDescription: nil) {
-                img.isTemplate = true
-                NSColor(red: 0.0, green: 0.8, blue: 0.7, alpha: 1.0).set() // Mint color
-                img.draw(in: iconRect)
+            // First check if we have a path to the music library folder
+            if let path = item.path, !path.isEmpty {
+                let fileIcon = NSWorkspace.shared.icon(forFile: path)
+                fileIcon.draw(in: iconRect)
                 iconDrawn = true
+            } else {
+                // Fallback to SF Symbol
+                let name = item.name.lowercased()
+                let iconName = name.contains("spotify") ? "music.note" : "music.note.list"
+                if let img = NSImage(systemSymbolName: iconName, accessibilityDescription: nil) {
+                    img.isTemplate = true
+                    NSColor(red: 0.0, green: 0.8, blue: 0.7, alpha: 1.0).set() // Mint color
+                    img.draw(in: iconRect)
+                    iconDrawn = true
+                }
             }
         }
         
         // 2.6. Photos Library Logic
         if !iconDrawn && item.type == .photosLibrary {
-            if let img = NSImage(systemSymbolName: "photo.on.rectangle", accessibilityDescription: nil) {
-                img.isTemplate = true
-                NSColor(red: 0.3, green: 0.8, blue: 0.8, alpha: 1.0).set() // Teal color
-                img.draw(in: iconRect)
+            // First check if we have a path to the Photos Library bundle
+            if let path = item.path, path.contains(".photoslibrary") {
+                let fileIcon = NSWorkspace.shared.icon(forFile: path)
+                fileIcon.draw(in: iconRect)
                 iconDrawn = true
+            } else {
+                // Fallback to SF Symbol
+                if let img = NSImage(systemSymbolName: "photo.on.rectangle", accessibilityDescription: nil) {
+                    img.isTemplate = true
+                    NSColor(red: 0.3, green: 0.8, blue: 0.8, alpha: 1.0).set() // Teal color
+                    img.draw(in: iconRect)
+                    iconDrawn = true
+                }
             }
         }
         
-        // 3. File Path Check
+        // 3. File Path Check (for other item types)
         if !iconDrawn {
             let details = item.details.trimmingCharacters(in: .whitespacesAndNewlines)
             if details.hasPrefix("/") {

@@ -52,19 +52,25 @@ struct InfoView: View {
                             .font(.headline)
                         
                         // Hardware
-                        InfoRow(icon: "cpu", title: "System Specifications", desc: "Captures RAM, Chip type, Storage capacity, and Serial Number.")
-                        InfoRow(icon: "server.rack", title: "Network Drives", desc: "Lists connected network shares and NAS volumes.")
-                        InfoRow(icon: "cable.connector", title: "Peripherals", desc: "Identifies webcams, drawing tablets, and specialised USB devices.")
+                        InfoRow(icon: "cpu", title: "System Specifications", desc: "Captures RAM, Chip type, Storage capacity, Serial Number, and Tahoe (Apple Intelligence) compatibility.")
+                        InfoRow(icon: "battery.100percent", title: "Battery Health", desc: "Records battery condition, maximum capacity, and cycle count (MacBooks only).")
+                        InfoRow(icon: "server.rack", title: "Network & Storage", desc: "Lists connected network shares, NAS volumes, and external USB drives.")
+                        InfoRow(icon: "cable.connector", title: "External Peripherals", desc: "Identifies webcams, drawing tablets, and specialised USB devices.")
                         
                         // Software
                         InfoRow(icon: "app.badge.checkmark", title: "Applications", desc: "Lists installed software so we can redeploy essential apps.")
-                        InfoRow(icon: "safari", title: "Web Browsers", desc: "Detects installed web browsers (Chrome, Firefox, etc.).")
-                        InfoRow(icon: "terminal", title: "Homebrew", desc: "Lists developer packages installed via Homebrew.")
+                        InfoRow(icon: "safari", title: "Web Browsers", desc: "Detects installed web browsers and their profiles (Safari, Chrome, Edge, Firefox).")
+                        InfoRow(icon: "terminal", title: "Homebrew Packages", desc: "Lists developer packages and CLI tools installed via Homebrew.")
+                        
+                        // Media Libraries
+                        InfoRow(icon: "music.note.list", title: "Music Library", desc: "Scans your Music folder and reports the total size and number of music files.")
+                        InfoRow(icon: "photo.on.rectangle", title: "Photos Library", desc: "Measures your Photos Library size to help plan storage for your new Mac.")
                         
                         // Configuration
-                        InfoRow(icon: "textformat", title: "Fonts", desc: "Identifies user-installed fonts and optionally captures the font files for migration.")
+                        InfoRow(icon: "textformat", title: "Fonts", desc: "Identifies user-installed and admin-installed fonts, optionally captures font files for migration.")
                         InfoRow(icon: "printer.fill", title: "Printer Drivers", desc: "Copies driver files for your connected printers.")
-                        InfoRow(icon: "cloud", title: "Cloud & Email", desc: "Lists configured email accounts and detected cloud storage providers.")
+                        InfoRow(icon: "envelope.fill", title: "Email Accounts", desc: "Detects configured email accounts in Mail and Outlook.")
+                        InfoRow(icon: "cloud", title: "Cloud Storage", desc: "Lists detected cloud storage providers (Dropbox, OneDrive, Google Drive, etc.).")
                     }
                     
                     Divider()
@@ -74,8 +80,9 @@ struct InfoView: View {
                         Text("What is NOT Scanned?")
                             .font(.headline)
                         
-                        InfoRow(icon: "lock.shield", title: "Private Data", desc: "No documents, passwords, or browsing history are accessed.")
+                        InfoRow(icon: "lock.shield", title: "Private Data", desc: "No documents, passwords, or browsing history are accessed. Music and Photos are measured only for size, not content.")
                         InfoRow(icon: "network.slash", title: "Network Traffic", desc: "No internet monitoring or traffic analysis is performed.")
+                        InfoRow(icon: "photo.slash", title: "Individual Files", desc: "We do not scan individual photos, music tracks, or personal files—only storage size totals.")
                     }
                     
                     Divider()
@@ -87,19 +94,23 @@ struct InfoView: View {
                         
                         HStack(alignment: .top) {
                             Text("1.")
-                            Text("Plug in all devices you use (Printers, Scanners, Webcams).")
+                            Text("Plug in all devices you use regularly (Printers, Scanners, Webcams, External Drives).")
                         }
                         HStack(alignment: .top) {
                             Text("2.")
-                            Text("Select 'Include Font Files' if you require your custom typography library moved.")
+                            Text("Grant permissions if prompted (Photos Library access requires approval in System Settings).")
                         }
                         HStack(alignment: .top) {
                             Text("3.")
-                            Text("Click 'Start Analysis' and wait for the scan to finish.")
+                            Text("Select 'Include Font Files' if you require your custom typography library moved to your new Mac.")
                         }
                         HStack(alignment: .top) {
                             Text("4.")
-                            Text("Review the data, then share/email the generated ZIP file to your administrator.")
+                            Text("Click 'Start Analysis' and wait for the scan to finish (typically 1-3 minutes).")
+                        }
+                        HStack(alignment: .top) {
+                            Text("5.")
+                            Text("Review the captured data, then share/email the generated ZIP file to your IT administrator.")
                         }
                     }
                     .foregroundColor(.secondary)

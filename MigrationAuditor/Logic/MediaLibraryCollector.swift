@@ -15,61 +15,58 @@ struct MediaLibraryCollector {
         var items: [AuditItem] = []
         let fileManager = FileManager.default
         let homeDir = fileManager.homeDirectoryForCurrentUser
+        let musicFolder = homeDir.appendingPathComponent("Music")
         
-        // --- Apple Music / iTunes Library ---
-        let musicLibraryPaths = [
-            homeDir.appendingPathComponent("Music/Music/Media.localized/Music"),
-            homeDir.appendingPathComponent("Music/iTunes/iTunes Music"),
-            homeDir.appendingPathComponent("Music/Music/Music"),
-            homeDir.appendingPathComponent("Music")
-        ]
-        
-        var foundMusicLibrary = false
-        
-        for musicPath in musicLibraryPaths {
-            if fileManager.fileExists(atPath: musicPath.path) {
-                let (trackCount, totalSize) = analyzeMusicFolder(path: musicPath.path)
-                
-                if trackCount > 0 {
-                    let sizeFormatted = formatBytes(totalSize)
-                    let details = "\(trackCount) tracks - \(sizeFormatted)"
-                    
-                    items.append(AuditItem(
-                        type: .musicLibrary,
-                        name: "Apple Music Library",
-                        details: details,
-                        developer: "Apple",
-                        path: musicPath.path
-                    ))
-                    foundMusicLibrary = true
-                    break
-                }
-            }
-        }
-        
-        // --- Spotify Local Files ---
-        let spotifyLocalPath = homeDir.appendingPathComponent("Library/Application Support/Spotify/Users")
-        if fileManager.fileExists(atPath: spotifyLocalPath.path) {
-            if let size = getFolderSize(path: spotifyLocalPath.path) {
-                let sizeFormatted = formatBytes(size)
-                items.append(AuditItem(
-                    type: .musicLibrary,
-                    name: "Spotify Cache",
-                    details: "Local data - \(sizeFormatted)",
-                    developer: "Spotify",
-                    path: spotifyLocalPath.path
-                ))
-            }
-        }
-        
-        // If no music library found
-        if !foundMusicLibrary {
+        // Check if Music folder exists and try to access it (will trigger permission prompt if needed)
+        guard fileManager.fileExists(atPath: musicFolder.path) else {
             items.append(AuditItem(
                 type: .musicLibrary,
-                name: "No Music Library",
-                details: "No local music collection detected",
+                name: "No Music Folder",
+                details: "Music folder not found",
                 developer: "N/A",
                 path: nil
+            ))
+            return items
+        }
+        
+        // Get all subfolders in ~/Music
+        do {
+            let contents = try fileManager.contentsOfDirectory(at: musicFolder, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
+            
+            for item in contents {
+                // Check if it's a directory
+                if let resourceValues = try? item.resourceValues(forKeys: [.isDirectoryKey]),
+                   let isDirectory = resourceValues.isDirectory,
+                   isDirectory {
+                    
+                    // Get folder size (will trigger permission prompt on first access)
+                    if let size = getFolderSize(path: item.path) {
+                        let sizeFormatted = formatBytes(size)
+                        let folderName = item.lastPathComponent
+                        
+                        items.append(AuditItem(
+                            type: .musicLibrary,
+                            name: folderName,
+                            details: sizeFormatted,
+                            developer: "Music",
+                            path: item.path
+                        ))
+                    }
+                }
+            }
+            
+        } catch {
+            print("Error reading Music folder: \(error)")
+        }
+        
+        // If no subfolders found, report that
+        if items.isEmpty {
+            items.append(AuditItem(
+                type: .musicLibrary,
+                name: "Empty Music Folder",
+                details: "No music libraries found",
+                developer: "N/A",
+                path: musicFolder.path
             ))
         }
         
@@ -82,58 +79,79 @@ struct MediaLibraryCollector {
         var items: [AuditItem] = []
         let fileManager = FileManager.default
         let homeDir = fileManager.homeDirectoryForCurrentUser
+        let picturesFolder = homeDir.appendingPathComponent("Pictures")
         
-        // --- Apple Photos Library ---
-        let photosLibraryPaths = [
-            homeDir.appendingPathComponent("Pictures/Photos Library.photoslibrary"),
-            homeDir.appendingPathComponent("Pictures/Photos.photoslibrary")
+        // Check if Pictures folder exists
+        guard fileManager.fileExists(atPath: picturesFolder.path) else {
+            items.append(AuditItem(
+                type: .photosLibrary,
+                name: "No Pictures Folder",
+                details: "Pictures folder not found",
+                developer: "N/A",
+                path: nil
+            ))
+            return items
+        }
+        
+        // Look for Photos Library bundles (common names)
+        let photosLibraryNames = [
+            "Photos Library.photoslibrary",
+            "Photos.photoslibrary",
+            "Photo Library.photoslibrary"
         ]
         
         var foundPhotosLibrary = false
         
-        for photosPath in photosLibraryPaths {
-            if fileManager.fileExists(atPath: photosPath.path) {
-                // Get the bundle size
-                if let size = getPhotosLibrarySize(path: photosPath.path) {
+        for libraryName in photosLibraryNames {
+            let libraryPath = picturesFolder.appendingPathComponent(libraryName)
+            
+            if fileManager.fileExists(atPath: libraryPath.path) {
+                foundPhotosLibrary = true
+                
+                // Get the size of the Photos Library bundle
+                if let size = getFolderSize(path: libraryPath.path) {
                     let sizeFormatted = formatBytes(size)
-                    
-                    // Try to count photos and videos
-                    let (photoCount, videoCount) = countPhotosAndVideos(libraryPath: photosPath.path)
-                    
-                    var details = sizeFormatted
-                    if photoCount > 0 || videoCount > 0 {
-                        details = "\(photoCount) photos, \(videoCount) videos - \(sizeFormatted)"
-                    }
                     
                     items.append(AuditItem(
                         type: .photosLibrary,
-                        name: "Apple Photos Library",
-                        details: details,
+                        name: libraryName,
+                        details: sizeFormatted,
                         developer: "Apple",
-                        path: photosPath.path
+                        path: libraryPath.path
                     ))
-                    foundPhotosLibrary = true
-                    break
+                } else {
+                    items.append(AuditItem(
+                        type: .photosLibrary,
+                        name: libraryName,
+                        details: "Unable to calculate size",
+                        developer: "Apple",
+                        path: libraryPath.path
+                    ))
                 }
             }
         }
         
-        // --- iCloud Photos Status ---
-        let iCloudPhotosPath = homeDir.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs")
-        if fileManager.fileExists(atPath: iCloudPhotosPath.path) {
-            // This indicates iCloud Drive is active, but Photos might be using iCloud Photos
-            // We can detect this by checking if the Photos library is relatively small (cloud-optimized)
-        }
-        
-        // If no photos library found
+        // If no Photos Library found, just report the Pictures folder
         if !foundPhotosLibrary {
-            items.append(AuditItem(
-                type: .photosLibrary,
-                name: "No Photos Library",
-                details: "No Apple Photos library detected",
-                developer: "N/A",
-                path: nil
-            ))
+            if let size = getFolderSize(path: picturesFolder.path) {
+                let sizeFormatted = formatBytes(size)
+                
+                items.append(AuditItem(
+                    type: .photosLibrary,
+                    name: "Pictures Folder",
+                    details: sizeFormatted,
+                    developer: "Pictures",
+                    path: picturesFolder.path
+                ))
+            } else {
+                items.append(AuditItem(
+                    type: .photosLibrary,
+                    name: "No Photos Library",
+                    details: "No Photos Library detected",
+                    developer: "N/A",
+                    path: nil
+                ))
+            }
         }
         
         return items
@@ -141,125 +159,131 @@ struct MediaLibraryCollector {
     
     // MARK: - Helper Functions
     
-    /// Analyzes a music folder and returns (track count, total size)
-    private static func analyzeMusicFolder(path: String) -> (Int, Int64) {
-        guard let enumerator = FileManager.default.enumerator(atPath: path) else { return (0, 0) }
+    /// Gets folder size (matching CloudStorageCollector pattern - will trigger permission prompt)
+    /// Gets folder size - uses URL-based enumerator for better bundle support
+    private static func getFolderSize(path: String) -> Int64? {
+        print("📏 [MediaLibraryCollector] Getting size for: \(path)")
         
-        var trackCount = 0
-        var totalSize: Int64 = 0
-        let musicExtensions = ["mp3", "m4a", "aac", "flac", "wav", "aiff", "alac", "ogg"]
+        let fileManager = FileManager.default
+        let folderURL = URL(fileURLWithPath: path)
         
-        // Limit iteration to avoid hanging
-        let maxFiles = 5000
-        var fileCount = 0
-        
-        while let file = enumerator.nextObject() as? String {
-            fileCount += 1
-            if fileCount > maxFiles { break }
-            
-            let filePath = (path as NSString).appendingPathComponent(file)
-            let fileExtension = (file as NSString).pathExtension.lowercased()
-            
-            if musicExtensions.contains(fileExtension) {
-                trackCount += 1
-                
-                if let attrs = try? FileManager.default.attributesOfItem(atPath: filePath),
-                   let fileSize = attrs[.size] as? Int64 {
-                    totalSize += fileSize
-                }
-            }
+        // FIRST: Try to get size using shell command (most reliable, doesn't need enumeration)
+        if let shellSize = getFolderSizeViaShell(path: path) {
+            print("📏 [MediaLibraryCollector] Got size via shell: \(formatBytes(shellSize))")
+            return shellSize
         }
         
-        return (trackCount, totalSize)
-    }
-    
-    /// Gets the total size of a Photos library bundle
-    private static func getPhotosLibrarySize(path: String) -> Int64? {
-        let fileManager = FileManager.default
+        print("📏 [MediaLibraryCollector] Shell method failed, trying URL enumerator...")
         
-        // For Photos libraries, we want to get the whole bundle size
+        // SECOND: Try URL-based enumerator (works better with bundles like .photoslibrary)
         guard let enumerator = fileManager.enumerator(
-            at: URL(fileURLWithPath: path),
-            includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
-            options: [.skipsHiddenFiles]
+            at: folderURL,
+            includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey],
+            options: [],
+            errorHandler: { url, error in
+                print("⚠️ [MediaLibraryCollector] Error accessing: \(url.lastPathComponent) - \(error.localizedDescription)")
+                return true // Continue enumeration
+            }
         ) else {
+            print("❌ [MediaLibraryCollector] Failed to create URL enumerator")
             return nil
         }
         
         var totalSize: Int64 = 0
         var fileCount = 0
-        let maxFiles = 10000 // Photos libraries can be large, but limit for safety
         
         for case let fileURL as URL in enumerator {
             fileCount += 1
-            if fileCount > maxFiles { break }
             
-            guard let resourceValues = try? fileURL.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
-                  let isRegularFile = resourceValues.isRegularFile,
-                  isRegularFile else {
-                continue
+            // Get allocated size (more accurate than file size)
+            if let resourceValues = try? fileURL.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey]),
+               let size = resourceValues.totalFileAllocatedSize ?? resourceValues.fileAllocatedSize {
+                totalSize += Int64(size)
             }
             
-            if let fileSize = resourceValues.fileSize {
-                totalSize += Int64(fileSize)
+            // Progress logging every 1000 files
+            if fileCount % 1000 == 0 {
+                print("📏 [MediaLibraryCollector] Progress: \(fileCount) files scanned, \(formatBytes(totalSize)) so far...")
             }
         }
+        
+        print("📏 [MediaLibraryCollector] Scan complete! \(fileCount) files, total size: \(totalSize) bytes (\(formatBytes(totalSize)))")
         
         return totalSize > 0 ? totalSize : nil
     }
     
-    /// Counts photos and videos in the Photos library
-    private static func countPhotosAndVideos(libraryPath: String) -> (photos: Int, videos: Int) {
-        let originalsPath = (libraryPath as NSString).appendingPathComponent("originals")
+    /// Fallback: Use shell command to get folder size (bypasses some permission issues)
+    private static func getFolderSizeViaShell(path: String) -> Int64? {
+        print("🐚 [MediaLibraryCollector] Trying mdls (metadata) command for: \(path)")
         
-        guard let enumerator = FileManager.default.enumerator(atPath: originalsPath) else {
-            return (0, 0)
-        }
+        // Try mdls first (gets Finder's cached size - doesn't need enumeration)
+        let mdlsTask = Process()
+        let mdlsPipe = Pipe()
         
-        var photoCount = 0
-        var videoCount = 0
+        mdlsTask.launchPath = "/usr/bin/mdls"
+        mdlsTask.arguments = ["-name", "kMDItemFSSize", path]
+        mdlsTask.standardOutput = mdlsPipe
+        mdlsTask.standardError = Pipe()
         
-        let photoExtensions = ["jpg", "jpeg", "png", "heic", "heif", "gif", "tiff", "raw", "cr2", "nef", "dng"]
-        let videoExtensions = ["mov", "mp4", "m4v", "avi", "mkv"]
-        
-        let maxFiles = 5000
-        var fileCount = 0
-        
-        while let file = enumerator.nextObject() as? String {
-            fileCount += 1
-            if fileCount > maxFiles { break }
+        do {
+            try mdlsTask.run()
+            mdlsTask.waitUntilExit()
             
-            let fileExtension = (file as NSString).pathExtension.lowercased()
-            
-            if photoExtensions.contains(fileExtension) {
-                photoCount += 1
-            } else if videoExtensions.contains(fileExtension) {
-                videoCount += 1
+            let mdlsData = mdlsPipe.fileHandleForReading.readDataToEndOfFile()
+            if let mdlsOutput = String(data: mdlsData, encoding: .utf8) {
+                print("🐚 [MediaLibraryCollector] mdls output: \(mdlsOutput)")
+                
+                // Output format: "kMDItemFSSize = 13186034091"
+                if let sizeString = mdlsOutput.components(separatedBy: "=").last?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   let sizeInBytes = Int64(sizeString) {
+                    print("✅ [MediaLibraryCollector] mdls succeeded: \(formatBytes(sizeInBytes))")
+                    return sizeInBytes
+                }
             }
+        } catch {
+            print("⚠️ [MediaLibraryCollector] mdls failed: \(error)")
         }
         
-        return (photoCount, videoCount)
-    }
-    
-    /// Gets folder size with file limit for safety
-    private static func getFolderSize(path: String) -> Int64? {
-        guard let enumerator = FileManager.default.enumerator(atPath: path) else { return nil }
-        var totalSize: Int64 = 0
-        var fileCount = 0
-        let maxFiles = 1000
+        print("🐚 [MediaLibraryCollector] mdls failed, trying du with shallow scan...")
         
-        while let file = enumerator.nextObject() as? String {
-            fileCount += 1
-            if fileCount > maxFiles { break }
+        // Fallback to du with depth limit
+        let task = Process()
+        let pipe = Pipe()
+        let errorPipe = Pipe()
+        
+        task.launchPath = "/usr/bin/du"
+        task.arguments = ["-sk", path] // -s = summary, -k = kilobytes
+        task.standardOutput = pipe
+        task.standardError = errorPipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
             
-            let filePath = (path as NSString).appendingPathComponent(file)
-            if let attrs = try? FileManager.default.attributesOfItem(atPath: filePath),
-               let fileSize = attrs[.size] as? Int64 {
-                totalSize += fileSize
+            // Check for errors
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            if !errorData.isEmpty, let errorOutput = String(data: errorData, encoding: .utf8) {
+                print("⚠️ [MediaLibraryCollector] du stderr: \(errorOutput.trimmingCharacters(in: .whitespacesAndNewlines))")
             }
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8), !output.isEmpty {
+                print("🐚 [MediaLibraryCollector] du output: \(output)")
+                
+                // Output format: "123456\t/path/to/folder"
+                let components = output.components(separatedBy: "\t")
+                if let sizeString = components.first?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   let sizeInKB = Int64(sizeString) {
+                    let sizeInBytes = sizeInKB * 1024
+                    print("✅ [MediaLibraryCollector] du succeeded: \(sizeInKB) KB = \(formatBytes(sizeInBytes))")
+                    return sizeInBytes
+                }
+            }
+        } catch {
+            print("❌ [MediaLibraryCollector] du exception: \(error)")
         }
         
-        return totalSize > 0 ? totalSize : nil
+        return nil
     }
     
     /// Format bytes to human-readable string

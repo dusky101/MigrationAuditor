@@ -26,7 +26,7 @@ struct IntroView: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
-                Text("Capture your complete Mac setup, apps, and settings for a seamless IT handover.")
+                Text("Capture your complete Mac setup, apps, and settings for a seamless migration or replacement Mac.")
                     .font(.title3)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)

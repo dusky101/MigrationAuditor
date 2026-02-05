@@ -71,6 +71,80 @@ class HardwareCollector {
         return items
     }
     
+    // 4. Battery Health (MacBooks only)
+    static func getBatterySpecs() -> [AuditItem] {
+        var items: [AuditItem] = []
+        
+        // Use system_profiler to get battery info
+        let task = Process()
+        let pipe = Pipe()
+        task.launchPath = "/usr/sbin/system_profiler"
+        task.arguments = ["SPPowerDataType"]
+        task.standardOutput = pipe
+        
+        do {
+            try task.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8) {
+                var batteryInfo: [String: String] = [:]
+                let lines = output.components(separatedBy: .newlines)
+                
+                for line in lines {
+                    let parts = line.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+                    if parts.count == 2 {
+                        batteryInfo[parts[0]] = parts[1]
+                    }
+                }
+                
+                // Battery Condition
+                if let condition = batteryInfo["Condition"] {
+                    items.append(AuditItem(
+                        type: .systemSpec,
+                        name: "Battery Condition",
+                        details: condition,
+                        developer: "Apple",
+                        path: nil
+                    ))
+                }
+                
+                // Maximum Capacity (shown as percentage)
+                if let maxCapacityStr = batteryInfo["Maximum Capacity"] {
+                    items.append(AuditItem(
+                        type: .systemSpec,
+                        name: "Battery Maximum Capacity",
+                        details: maxCapacityStr,
+                        developer: "Apple",
+                        path: nil
+                    ))
+                } else if let stateOfCharge = batteryInfo["State of Charge (%)"] {
+                    // Fallback for older macOS versions
+                    items.append(AuditItem(
+                        type: .systemSpec,
+                        name: "Battery Maximum Capacity",
+                        details: stateOfCharge,
+                        developer: "Apple",
+                        path: nil
+                    ))
+                }
+                
+                // Cycle Count
+                if let cycleCount = batteryInfo["Cycle Count"] {
+                    items.append(AuditItem(
+                        type: .systemSpec,
+                        name: "Battery Cycle Count",
+                        details: cycleCount,
+                        developer: "Apple",
+                        path: nil
+                    ))
+                }
+            }
+        } catch {
+            // No battery or error - skip silently (likely a desktop Mac)
+        }
+        
+        return items
+    }
+    
     // --- Helper: The Compliance Logic (Modernized Scanner) ---
     private static func calculateTahoeStatus(modelID: String, chipName: String) -> String {
         // 1. Apple Silicon is always Fully Supported (AI + OS)
