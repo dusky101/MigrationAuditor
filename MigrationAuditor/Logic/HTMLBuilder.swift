@@ -404,10 +404,10 @@ class HTMLBuilder {
                         
                         <div class="card" data-category="email">
                             <div class="card-header">
-                                <span class="card-title">📧 Email</span>
+                                <span class="card-title">📧 Email Accounts (addresses)</span>
                                 <span class="badge">\(emails.count)</span>
                             </div>
-                            <table><thead><tr><th>Client</th><th>Details</th></tr></thead><tbody>
+                            <table><thead><tr><th>Client</th><th>Email Address(es)</th></tr></thead><tbody>
         """
         
         html += Self.generateRows(items: emails)
@@ -716,3 +716,4 @@ class HTMLBuilder {
         return html
     }
 }
+

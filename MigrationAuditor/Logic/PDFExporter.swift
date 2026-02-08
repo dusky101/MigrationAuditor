@@ -113,7 +113,14 @@ struct PDFExporter {
                 startNewPage(context: pdfContext, mediaBox: &mediaBox, pageNumber: &currentPage, yPosition: &yPosition, pageHeight: pageHeight, pageWidth: pageWidth, margin: margin)
             }
             
-            yPosition = drawSectionTitle(title: "\(itemType.rawValue) (\(sortedItems.count))", iconName: itemType.icon, itemType: itemType, yPosition: yPosition, margin: margin, contentWidth: contentWidth)
+            let sectionTitle: String
+            if itemType == .emailAccount {
+                sectionTitle = "Email Accounts (addresses) (\(sortedItems.count))"
+            } else {
+                sectionTitle = "\(itemType.rawValue) (\(sortedItems.count))"
+            }
+            yPosition = drawSectionTitle(title: sectionTitle, iconName: itemType.icon, itemType: itemType, yPosition: yPosition, margin: margin, contentWidth: contentWidth)
+            
             yPosition -= 10
             
             for item in sortedItems {
@@ -202,10 +209,8 @@ struct PDFExporter {
              iconDrawn = true
         }
         
-        if !iconDrawn, let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil) {
-            image.isTemplate = true
-            NSColor.darkGray.set()
-            image.draw(in: iconRect)
+        if !iconDrawn, let img = rasterizedSymbol(named: iconName, pointSize: iconRect.height, color: NSColor.darkGray) {
+            img.draw(in: iconRect)
         }
         
         let font = NSFont.boldSystemFont(ofSize: 12)
@@ -234,92 +239,13 @@ struct PDFExporter {
         var currentY = yPosition
         
         let iconRect = CGRect(x: margin, y: currentY - iconSize, width: iconSize, height: iconSize)
-        var iconDrawn = false
         
-        // 1. Homebrew Check
-        if item.type == .homebrew, let hbImage = NSImage(named: "homebrew") {
-            hbImage.draw(in: iconRect)
-            iconDrawn = true
-        }
-        
-        // 2. System Specs Logic
-        if !iconDrawn && item.type == .systemSpec {
-            let name = item.name.lowercased()
-            var sysIconName = "desktopcomputer" // fallback
-            
-            if name.contains("drive") || name.contains("storage") { sysIconName = "internaldrive" }
-            else if name.contains("available") { sysIconName = "internaldrive.fill" }
-            else if name.contains("memory") || name.contains("ram") { sysIconName = "memorychip" }
-            else if name.contains("processor") || name.contains("chip") { sysIconName = "cpu" }
-            else if name.contains("serial") { sysIconName = "barcode" }
-            else if name.contains("model") { sysIconName = "laptopcomputer" }
-            else if name.contains("version") { sysIconName = "macwindow" }
-            else if name.contains("tahoe") || name.contains("support") { sysIconName = "sparkles" }
-            else if name.contains("icloud") { sysIconName = "icloud" }
-            else if name.contains("battery") { sysIconName = "battery.100percent" }
-            
-            if let img = NSImage(systemSymbolName: sysIconName, accessibilityDescription: nil) {
-                img.isTemplate = true
-                NSColor.darkGray.set()
-                img.draw(in: iconRect)
-                iconDrawn = true
-            }
-        }
-        
-        // 2.5. Music Library Logic
-        if !iconDrawn && item.type == .musicLibrary {
-            // First check if we have a path to the music library folder
-            if let path = item.path, !path.isEmpty {
-                let fileIcon = NSWorkspace.shared.icon(forFile: path)
-                fileIcon.draw(in: iconRect)
-                iconDrawn = true
-            } else {
-                // Fallback to SF Symbol
-                let name = item.name.lowercased()
-                let iconName = name.contains("spotify") ? "music.note" : "music.note.list"
-                if let img = NSImage(systemSymbolName: iconName, accessibilityDescription: nil) {
-                    img.isTemplate = true
-                    NSColor(red: 0.0, green: 0.8, blue: 0.7, alpha: 1.0).set() // Mint color
-                    img.draw(in: iconRect)
-                    iconDrawn = true
-                }
-            }
-        }
-        
-        // 2.6. Photos Library Logic
-        if !iconDrawn && item.type == .photosLibrary {
-            // First check if we have a path to the Photos Library bundle
-            if let path = item.path, path.contains(".photoslibrary") {
-                let fileIcon = NSWorkspace.shared.icon(forFile: path)
-                fileIcon.draw(in: iconRect)
-                iconDrawn = true
-            } else {
-                // Fallback to SF Symbol
-                if let img = NSImage(systemSymbolName: "photo.on.rectangle", accessibilityDescription: nil) {
-                    img.isTemplate = true
-                    NSColor(red: 0.3, green: 0.8, blue: 0.8, alpha: 1.0).set() // Teal color
-                    img.draw(in: iconRect)
-                    iconDrawn = true
-                }
-            }
-        }
-        
-        // 3. File Path Check (for other item types)
-        if !iconDrawn {
-            let details = item.details.trimmingCharacters(in: .whitespacesAndNewlines)
-            if details.hasPrefix("/") {
-                let fileIcon = NSWorkspace.shared.icon(forFile: details)
-                fileIcon.draw(in: iconRect)
-                iconDrawn = true
-            }
-        }
-        
-        // 4. Fallback
-        if !iconDrawn {
-            let symbolImage = NSImage(systemSymbolName: item.type.icon, accessibilityDescription: nil) ?? NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
-            symbolImage?.isTemplate = true
-            NSColor.lightGray.set()
-            symbolImage?.draw(in: iconRect)
+        if let img = PDFIconProvider.image(for: item, iconSize: 24) {
+            img.draw(in: iconRect)
+        } else {
+            // Fallback simple symbol if provider returns nil
+            let fallback = NSImage(systemSymbolName: item.type.icon, accessibilityDescription: nil) ?? NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
+            fallback?.draw(in: iconRect)
         }
         
         let nameFont = NSFont.boldSystemFont(ofSize: 10)
@@ -336,7 +262,8 @@ struct PDFExporter {
             currentY -= detailRect.height
         }
         
-        if !item.developer.isEmpty {
+        // Show developer info for non-systemSpec items only
+        if item.type != .systemSpec && !item.developer.isEmpty {
             let devFont = NSFont.systemFont(ofSize: 8)
             let devAttr: [NSAttributedString.Key: Any] = [.font: devFont, .foregroundColor: NSColor(white: 0.6, alpha: 1.0)]
             let devString = "Developer: \(item.developer)"
@@ -360,7 +287,8 @@ struct PDFExporter {
             let detailRect = item.details.boundingRect(with: CGSize(width: width, height: 1000), options: .usesLineFragmentOrigin, attributes: [.font: detailFont])
             height += detailRect.height
         }
-        if !item.developer.isEmpty {
+        // Only account for developer line height when not a systemSpec item
+        if item.type != .systemSpec && !item.developer.isEmpty {
             height += devFont.pointSize + 2
         }
         return max(height, 24) + 8
@@ -374,6 +302,21 @@ struct PDFExporter {
         text.draw(at: CGPoint(x: pageWidth - margin - size.width, y: yPosition), withAttributes: attr)
     }
     
+    // Rasterize SF Symbols with tint to avoid black squares in PDF contexts
+    private static func rasterizedSymbol(named: String, pointSize: CGFloat, color: NSColor) -> NSImage? {
+        guard let base = NSImage(systemSymbolName: named, accessibilityDescription: nil) else { return nil }
+        let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .regular)
+        let configured = base.withSymbolConfiguration(config)
+        let size = NSSize(width: pointSize, height: pointSize)
+        let out = NSImage(size: size)
+        out.lockFocus()
+        color.set()
+        configured?.isTemplate = true
+        configured?.draw(in: NSRect(origin: .zero, size: size))
+        out.unlockFocus()
+        return out
+    }
+    
     private static func drawFooter(pageWidth: CGFloat, margin: CGFloat) {
         let font = NSFont.systemFont(ofSize: 9)
         let text = "Generated by Mac Migration Auditor"
@@ -381,3 +324,4 @@ struct PDFExporter {
         text.draw(at: CGPoint(x: margin, y: 30), withAttributes: attr)
     }
 }
+

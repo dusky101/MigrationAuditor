@@ -68,6 +68,16 @@ class HardwareCollector {
         
         items.append(AuditItem(type: .systemSpec, name: "Tahoe Support", details: status, developer: "Apple", path: nil))
         
+        // Logged-in User Info
+        let fullName = NSFullUserName()
+        if !fullName.isEmpty {
+            items.append(AuditItem(type: .systemSpec, name: "Logged-in User", details: fullName, developer: "User", path: nil))
+        }
+        let loginName = NSUserName()
+        if !loginName.isEmpty {
+            items.append(AuditItem(type: .systemSpec, name: "Login Name", details: loginName, developer: "User", path: nil))
+        }
+        
         return items
     }
     
@@ -229,3 +239,4 @@ class HardwareCollector {
         return [:]
     }
 }
+

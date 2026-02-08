@@ -226,7 +226,7 @@ class AuditLogic: ObservableObject {
             tempItems.append(contentsOf: BrowserCollector.getBrowserInfo())
             
             // --- EMAIL ACCOUNTS ---
-            DispatchQueue.main.async { self.progressMessage = "Scanning Email Accounts..."; self.scanProgress = 0.32 }
+            DispatchQueue.main.async { self.progressMessage = "Scanning Email Accounts (capturing addresses)..."; self.scanProgress = 0.32 }
             tempItems.append(contentsOf: EmailAccountCollector.getEmailAccounts())
             
             // --- CLOUD STORAGE ---
@@ -415,3 +415,4 @@ class AuditLogic: ObservableObject {
         }
     }
 }
+

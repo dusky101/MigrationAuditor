@@ -162,127 +162,59 @@ struct MediaLibraryCollector {
     /// Gets folder size (matching CloudStorageCollector pattern - will trigger permission prompt)
     /// Gets folder size - uses URL-based enumerator for better bundle support
     private static func getFolderSize(path: String) -> Int64? {
-        print("📏 [MediaLibraryCollector] Getting size for: \(path)")
-        
         let fileManager = FileManager.default
         let folderURL = URL(fileURLWithPath: path)
         
-        // FIRST: Try to get size using shell command (most reliable, doesn't need enumeration)
+        // First: try a fast shell summary via 'du'
         if let shellSize = getFolderSizeViaShell(path: path) {
-            print("📏 [MediaLibraryCollector] Got size via shell: \(formatBytes(shellSize))")
             return shellSize
         }
         
-        print("📏 [MediaLibraryCollector] Shell method failed, trying URL enumerator...")
-        
-        // SECOND: Try URL-based enumerator (works better with bundles like .photoslibrary)
+        // Fallback: enumerate files and sum allocated sizes (silent)
         guard let enumerator = fileManager.enumerator(
             at: folderURL,
             includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey],
             options: [],
-            errorHandler: { url, error in
-                print("⚠️ [MediaLibraryCollector] Error accessing: \(url.lastPathComponent) - \(error.localizedDescription)")
-                return true // Continue enumeration
-            }
+            errorHandler: { _, _ in true }
         ) else {
-            print("❌ [MediaLibraryCollector] Failed to create URL enumerator")
             return nil
         }
         
         var totalSize: Int64 = 0
-        var fileCount = 0
-        
         for case let fileURL as URL in enumerator {
-            fileCount += 1
-            
-            // Get allocated size (more accurate than file size)
             if let resourceValues = try? fileURL.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey]),
                let size = resourceValues.totalFileAllocatedSize ?? resourceValues.fileAllocatedSize {
                 totalSize += Int64(size)
             }
-            
-            // Progress logging every 1000 files
-            if fileCount % 1000 == 0 {
-                print("📏 [MediaLibraryCollector] Progress: \(fileCount) files scanned, \(formatBytes(totalSize)) so far...")
-            }
         }
-        
-        print("📏 [MediaLibraryCollector] Scan complete! \(fileCount) files, total size: \(totalSize) bytes (\(formatBytes(totalSize)))")
         
         return totalSize > 0 ? totalSize : nil
     }
     
     /// Fallback: Use shell command to get folder size (bypasses some permission issues)
     private static func getFolderSizeViaShell(path: String) -> Int64? {
-        print("🐚 [MediaLibraryCollector] Trying mdls (metadata) command for: \(path)")
-        
-        // Try mdls first (gets Finder's cached size - doesn't need enumeration)
-        let mdlsTask = Process()
-        let mdlsPipe = Pipe()
-        
-        mdlsTask.launchPath = "/usr/bin/mdls"
-        mdlsTask.arguments = ["-name", "kMDItemFSSize", path]
-        mdlsTask.standardOutput = mdlsPipe
-        mdlsTask.standardError = Pipe()
-        
-        do {
-            try mdlsTask.run()
-            mdlsTask.waitUntilExit()
-            
-            let mdlsData = mdlsPipe.fileHandleForReading.readDataToEndOfFile()
-            if let mdlsOutput = String(data: mdlsData, encoding: .utf8) {
-                print("🐚 [MediaLibraryCollector] mdls output: \(mdlsOutput)")
-                
-                // Output format: "kMDItemFSSize = 13186034091"
-                if let sizeString = mdlsOutput.components(separatedBy: "=").last?.trimmingCharacters(in: .whitespacesAndNewlines),
-                   let sizeInBytes = Int64(sizeString) {
-                    print("✅ [MediaLibraryCollector] mdls succeeded: \(formatBytes(sizeInBytes))")
-                    return sizeInBytes
-                }
-            }
-        } catch {
-            print("⚠️ [MediaLibraryCollector] mdls failed: \(error)")
-        }
-        
-        print("🐚 [MediaLibraryCollector] mdls failed, trying du with shallow scan...")
-        
-        // Fallback to du with depth limit
         let task = Process()
         let pipe = Pipe()
-        let errorPipe = Pipe()
-        
         task.launchPath = "/usr/bin/du"
         task.arguments = ["-sk", path] // -s = summary, -k = kilobytes
         task.standardOutput = pipe
-        task.standardError = errorPipe
+        task.standardError = Pipe()
         
         do {
             try task.run()
             task.waitUntilExit()
-            
-            // Check for errors
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            if !errorData.isEmpty, let errorOutput = String(data: errorData, encoding: .utf8) {
-                print("⚠️ [MediaLibraryCollector] du stderr: \(errorOutput.trimmingCharacters(in: .whitespacesAndNewlines))")
-            }
-            
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             if let output = String(data: data, encoding: .utf8), !output.isEmpty {
-                print("🐚 [MediaLibraryCollector] du output: \(output)")
-                
                 // Output format: "123456\t/path/to/folder"
                 let components = output.components(separatedBy: "\t")
                 if let sizeString = components.first?.trimmingCharacters(in: .whitespacesAndNewlines),
                    let sizeInKB = Int64(sizeString) {
-                    let sizeInBytes = sizeInKB * 1024
-                    print("✅ [MediaLibraryCollector] du succeeded: \(sizeInKB) KB = \(formatBytes(sizeInBytes))")
-                    return sizeInBytes
+                    return sizeInKB * 1024
                 }
             }
         } catch {
-            print("❌ [MediaLibraryCollector] du exception: \(error)")
+            // Silent fail
         }
-        
         return nil
     }
     
@@ -293,3 +225,4 @@ struct MediaLibraryCollector {
         return formatter.string(fromByteCount: bytes)
     }
 }
+

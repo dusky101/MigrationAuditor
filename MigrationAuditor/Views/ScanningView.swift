@@ -64,9 +64,6 @@ struct ScanningView: View {
                             .repeatForever(autoreverses: false),
                             value: pulseAnimation
                         )
-                        .onAppear {
-                            pulseAnimation = true
-                        }
                 }
                 
                 Image(systemName: currentIcon)
@@ -119,11 +116,15 @@ struct ScanningView: View {
             }
             Spacer()
         }
-        .onChange(of: message) { _, _ in
-            // Reset pulse animation when message changes
-            if !isDeepScan {
-                pulseAnimation = false
+        .onChange(of: isDeepScan) { _, newValue in
+            // Start/stop pulse when deep scan toggles; schedule to next run loop to avoid multiple updates per frame
+            DispatchQueue.main.async {
+                pulseAnimation = newValue
             }
+        }
+        .onAppear {
+            // Initialize pulse state based on current deep scan flag
+            pulseAnimation = isDeepScan
         }
     }
 }

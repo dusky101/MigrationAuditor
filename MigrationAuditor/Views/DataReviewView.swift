@@ -82,7 +82,7 @@ struct DataReviewView: View {
                 // Search
                 SearchBar(text: $searchText)
                 
-                // Filter Chips (Using Center-Aligned Flow Layout)
+                // Filter Chips (Using FlowLayout with left alignment to keep layout stable)
                 FilterGrid(
                     items: items,
                     selectedFilters: $selectedFilters,
@@ -187,7 +187,7 @@ struct DataReviewView: View {
                                 let items = filteredItems.filter { $0.type == type }
                                 if !items.isEmpty {
                                     CompactCategoryView(
-                                        title: type.rawValue,
+                                        title: (type == .emailAccount ? "Email Accounts (addresses)" : type.rawValue),
                                         icon: type.icon,
                                         color: type.color,
                                         itemType: type,
@@ -346,13 +346,13 @@ struct FilterGrid: View {
     let colorScheme: ColorScheme
     
     var body: some View {
-        // Using FlowLayout to center the items naturally
+        // Using FlowLayout with left alignment to keep layout stable
         FlowLayout(spacing: 10) {
             ForEach(AuditItem.ItemType.allCases, id: \.self) { itemType in
                 let itemCount = items.filter { $0.type == itemType }.count
                 if !(itemType == .internalDevice && itemCount == 0) {
                     FilterChip(
-                        title: itemType.rawValue,
+                        title: (itemType == .emailAccount ? "Email Accounts" : itemType.rawValue),
                         icon: itemType.icon,
                         color: itemType.color,
                         isSelected: selectedFilters.contains(itemType),
@@ -507,7 +507,7 @@ struct CompactItemRow: View {
                     Text(item.details)
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
             }
             Spacer()
@@ -611,7 +611,7 @@ struct FilterChip: View {
                 
                 Text(title)
                     .font(.caption)
-                    .fontWeight(isSelected ? .bold : .medium)
+                    .fontWeight(.semibold)
                     .lineLimit(1)
                 
                 // --- FIXED SIZE COUNT BADGE ---
@@ -639,7 +639,6 @@ struct FilterChip: View {
         .help("""
             Click: Toggle filter
             ⌘ Command+Click: Solo (show only this, click again to show all)
-            ⌥ Option+Click: Scroll to section
             """)
     }
 }
@@ -656,9 +655,8 @@ struct FlowLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let result = flow(in: proposal.replacingUnspecifiedDimensions().width, subviews: subviews, spacing: spacing)
         for (index, row) in result.rows.enumerated() {
-            let rowWidth = row.map { $0.size.width }.reduce(0, +) + CGFloat(row.count - 1) * spacing
-            let xOffset = (bounds.width - rowWidth) / 2
-            var currentX = bounds.minX + xOffset
+            // Left-align rows to avoid layout shifting when individual chip widths change
+            var currentX = bounds.minX
             let y = bounds.minY + result.rowYs[index]
             for item in row {
                 subviews[item.index].place(at: CGPoint(x: currentX, y: y), proposal: ProposedViewSize(item.size))
@@ -702,3 +700,4 @@ struct FlowLayout: Layout {
         return result
     }
 }
+
